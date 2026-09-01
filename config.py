@@ -17,6 +17,9 @@ STATS_SELECTOR = "div.detail__status"
 STATS_VAL_SELECTOR = "dl.detail__status--min, dl.detail__status--max"
 SKILLS_SELECTOR = "div.detail__skill"
 WEAPON_ABILITY_SELECTOR = "div.detail__ability dl.detail__ability--txt"
-AWAKENING_SELECTOR = "div.sp_evo_title"
-AWAKENING_CONTENT_SELECTOR = "sp_evo_contents"
-AWAKENING_MATERIAL_SELECTOR = "td.special_evolution_material_block"
+
+# awakening / enlightening selector
+SP_EVO_SELECTOR = "dl.detail__reincarnation"
+SP_EVO_MAT_TITLE_SELECTOR = "div.sp_evo_title"
+SP_EVO_MAT_CONTENT_CLASSNAME = "sp_evo_contents"
+SP_EVO_MAT_BLOCK_SELECTOR = "td.special_evolution_material_block"
