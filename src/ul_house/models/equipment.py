@@ -20,7 +20,7 @@ class EquipmentRef(ItemRef):
 
 
 @dataclass(frozen=True, slots=True)
-class Equipment(EquipmentRef):
+class Equipment(EquipmentRef, ABC):
     rarity: str
     gear_type: str
     cost: int
