@@ -17,7 +17,7 @@ class Reforge(GearEvolution):
 
 
 @dataclass(frozen=True, slots=True)
-class SpecailEvolution(GearEvolution):
+class SpecailEvolution(GearEvolution, ABC):
     gear_materials: tuple[GearEvoMaterial, ...] | None
     item_materials: tuple[ItemEvoMaterial, ...] | None
     
