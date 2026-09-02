@@ -1,4 +1,4 @@
-from ul_house.models.element import Element
+from ul_house.models.combat_mechanism import Element
 
 ELEMENT = {
     Element(
