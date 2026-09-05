@@ -1,37 +1,37 @@
 from ul_house.models.combat_mechanism import Element
 
 ELEMENT = {
-    Element(
+    "fire": Element(
         id="fire",
         effective=("wind",),
         weakness=("water",),
     ),
-    Element(
+    "water": Element(
         id="water",
         effective=("fire",),
         weakness=("wind",),
     ),
-    Element(
+    "wind": Element(
         id="wind",
         effective=("water",),
         weakness=("fire",),
     ),
-    Element(
+    "light": Element(
         id="light",
         effective=("dark", "time"),
         weakness=("dark", "star"),
     ),
-    Element(
+    "dark": Element(
         id="dark",
         effective=("light", "time"),
         weakness=("light", "star"),
     ),
-    Element(
+    "time": Element(
         id="time",
         effective=("star",),
         weakness=("light", "dark"),
     ),
-    Element(
+    "star": Element(
         id="star",
         effective=("light", "dark"),
         weakness=("time",),
