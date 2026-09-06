@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from abc import ABC
 
+from ul_house.config import BASE_URL
 
 @dataclass(frozen=True, slots=True)
 class CombatMech(ABC):
@@ -17,8 +18,15 @@ class Proc(CombatMech): # shared/similar skills with same types (weapons, def/md
 @dataclass(frozen=True, slots=True)
 class WeaponAbility(CombatMech):
     id: str
-    icon_url: str
-    
+
+    @property
+    def abiliy_url(self) -> str:
+        return f"{BASE_URL}/en/ability_detail/{self.id}.html"
+
+    @property
+    def icon_url(self) -> str:
+        return f"{BASE_URL}/images/ability/ability_{self.id}.png"
+
 
 @dataclass(frozen=True, slots=True)
 class MonsterSkill(CombatMech): # unique per monster, but have shared SkillEffects
