@@ -16,7 +16,7 @@ class ItemRef:
 
 @dataclass(frozen=True, slots=True)
 class EquipmentRef(ItemRef):
-    details_url: str
+    info_url: str
 
 
 @dataclass(frozen=True, slots=True)
