@@ -36,4 +36,9 @@ ELEMENT = {
         effective=("light", "dark"),
         weakness=("time",),
     ),
+    "none": Element(
+        id="none",
+        effective=(),
+        weakness=(),
+    )
 }
