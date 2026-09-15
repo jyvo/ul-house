@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup, Tag
 from ul_house.config import BASE_URL, NAME_SELECTOR, BASIC_INFO_SELECTOR, STATS_NAME_SELECTOR, STATS_SELECTOR, STATS_VAL_SELECTOR, SKILLS_SELECTOR, WEAPON_ABILITY_SELECTOR, SP_EVO_SELECTOR, SP_EVO_MAT_TITLE_SELECTOR, SP_EVO_MAT_CONTENT_CLASSNAME, SP_EVO_MAT_BLOCK_SELECTOR
 
 from ul_house.models.gear_evolution import Reforge, Awakening, Enlightening
-from ul_house.models.combat_mechanism import WeaponAbility
+from ul_house.models.gear_mechanism import WeaponAbility
 
 log = logging.getLogger("parser")
 
@@ -132,7 +132,7 @@ def _parse_ability(soup: BeautifulSoup) -> WeaponAbility:
     effect_descs = metadata_block.find_next("dd").get_text(strip=True).split("\n")
     for desc in effect_descs:
         meta = desc.split(". ")
-        print(meta)
+        # print(meta)
 
     ability = WeaponAbility(
         id=id,
