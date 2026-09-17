@@ -1,8 +1,10 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from abc import ABC
+from typing import TYPE_CHECKING
 
-from models.equipment import EquipmentRef, ItemRef
+if TYPE_CHECKING:
+    from ul_house.models.equipment import EquipmentRef, ItemRef
 
 
 @dataclass(frozen=True, slots=True)
