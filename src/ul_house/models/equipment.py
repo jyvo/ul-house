@@ -9,23 +9,23 @@ from ul_house.config import BASE_URL
 
 @dataclass(frozen=True, slots=True)
 class ItemRef:
-    id: str
+    uid: str
     name: str
 
     @property
     def icon_url(self) -> str:
-        return f"{BASE_URL}/images/itemicon/item_{self.id}.png"
+        return f"{BASE_URL}/images/itemicon/item_{self.uid}.png"
 
 
 @dataclass(frozen=True, slots=True)
 class EquipmentRef(ItemRef):
     @property
     def info_url(self) -> str:
-        return f"{BASE_URL}/en/equip_detail/{self.id}.html"
+        return f"{BASE_URL}/en/equip_detail/{self.uid}.html"
 
     @property
     def icon_url(self) -> str:
-        return f"{BASE_URL}/images/equipicon/{self.id}.png"
+        return f"{BASE_URL}/images/equipicon/{self.uid}.png"
 
 
 @dataclass(frozen=True, slots=True)
