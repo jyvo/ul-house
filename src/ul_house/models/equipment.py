@@ -14,7 +14,7 @@ class ItemRef:
 
     @property
     def icon_url(self) -> str:
-        return f"{BASE_URL}/images/equipicon/{self.id}.png"
+        return f"{BASE_URL}/images/itemicon/item_{self.id}.png"
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +22,10 @@ class EquipmentRef(ItemRef):
     @property
     def info_url(self) -> str:
         return f"{BASE_URL}/en/equip_detail/{self.id}.html"
+
+    @property
+    def icon_url(self) -> str:
+        return f"{BASE_URL}/images/equipicon/{self.id}.png"
 
 
 @dataclass(frozen=True, slots=True)
