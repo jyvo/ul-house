@@ -12,7 +12,20 @@ class CombatMech(ABC):
 
 @dataclass(frozen=True, slots=True)
 class Proc(CombatMech): # shared/similar skills with same types (weapons, def/mdef)
-    pass
+    activation: ProcActivation | None = None
+    scaling: tuple[ProcScaling, ...] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ProcActivation:
+    condition: tuple[str, ...] | None = None
+    rate: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ProcScaling:
+    # for now, adjust for parsing later, including tags for scaling type (effect, activation)
+    description: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,8 +54,8 @@ class PassiveSkill(CombatMech): # monster passive
 @dataclass(slots=True)
 class HiddenPotential:
     unlocks: tuple[PotentialLevel, ...]
+    restrictions: str | None = None
     unlocked_level: int = 0 # needs to be mutable for tracking
-    restrictions: str | None
 
     @property
     def max_level(self) -> int:
@@ -66,9 +79,9 @@ class PotentialLevel:
 
 
 # for now assume this basic structure, doc as abstract later (ABC)
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SkillEffect:
-    target: str | None # single or multi target
+    target: str | None = None # single or multi target
     description: str
 
 
