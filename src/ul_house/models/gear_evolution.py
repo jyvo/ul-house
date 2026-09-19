@@ -9,20 +9,20 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class GearEvolution(ABC):
-    before: EquipmentRef | None
-    after: EquipmentRef | None
+    before: EquipmentRef | None = None
+    after: EquipmentRef | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class Reforge(GearEvolution):
-    material: tuple[GearEvoMaterial, ...] | None
+    material: tuple[GearEvoMaterial, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class SpecailEvolution(GearEvolution, ABC):
-    gear_materials: tuple[GearEvoMaterial, ...] | None
-    item_materials: tuple[ItemEvoMaterial, ...] | None
-    
+    gear_materials: tuple[GearEvoMaterial, ...] | None = None
+    item_materials: tuple[ItemEvoMaterial, ...] | None = None
+
 
 @dataclass(frozen=True, slots=True)
 class Awakening(SpecailEvolution):
@@ -36,14 +36,14 @@ class Enlightening(SpecailEvolution):
 
 @dataclass(frozen=True, slots=True)
 class EvoMaterial(ABC):
-    quantity: int
+    quantity: int = 1
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class GearEvoMaterial(EvoMaterial):
     gear: EquipmentRef
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ItemEvoMaterial(EvoMaterial):
     item: ItemRef
