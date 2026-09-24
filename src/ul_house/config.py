@@ -9,7 +9,7 @@ RARITY_SUFFIX = {"5": "UR", "4": "SSR"}
 
 WEAPON_TYPES = ("sword", "axe", "lance", "scythe", "bow", "gun", "staff", "book", "relic", "dual blade")
 MONSTER_TYPE = "monster"
-STAT_LABELS = {"ATK", "MATK", "DEF", "MDEF"}
+STAT_LABELS = {"atk", "matk", "def", "mdef"}
 
 # ref id url regex
 EQUIP_ID_RE = re.compile(r"equip_detail/(\d+)\.html")
@@ -27,7 +27,6 @@ NAME_SELECTOR = "p.name__text"
 BASIC_DATA_SELECTOR = "div.detail__data dl.detail__data--txt"
 STATS_NAME_SELECTOR = "dl.detail__status--name dd"
 STATS_SELECTOR = "div.detail__status dl"
-# STATS_VAL_SELECTOR = "dl.detail__status--min, dl.detail__status--max"
 SKILLS_SELECTOR = "div.detail__skill", "dl.detail__evo dt"
 WEAPON_ABILITY_SELECTOR = "div.detail__ability dl.detail__ability--txt dt"
 REFORGE_SELECTOR = "dl.detail__evo"
