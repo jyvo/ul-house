@@ -1,7 +1,7 @@
 import re
 from bs4 import BeautifulSoup, Tag
-from ul_house.config import BASE_URL, BASIC_DATA_SELECTOR, EQUIP_REF_TAG, HEADING_SELECTOR, ITEM_REF_TAG, NAME_SELECTOR, REFORGE_MAT_SELECTOR, REFORGE_SELECTOR, SP_MAT_CONTENT_NAME, SP_MAT_CONTENT_SELECTOR, SP_MAT_TITLE_SELECTOR, STATS_NAME_SELECTOR, STATS_SELECTOR, SKILLS_SELECTOR, WEAPON_ABILITY_SELECTOR
-from ul_house.config import _EQUIP_ID_RE, _ITEM_ID_RE, _ABILITY_ID_RE
+from ul_house.config import BASE_URL, BASIC_DATA_SELECTOR, EQUIP_REF_TAG, HEADING_SELECTOR, ITEM_REF_TAG, NAME_SELECTOR, REFORGE_MAT_SELECTOR, REFORGE_SELECTOR, SP_EVO_SELECTOR, SP_MAT_CONTENT_NAME, SP_MAT_CONTENT_SELECTOR, SP_MAT_TITLE_SELECTOR, STATS_NAME_SELECTOR, STATS_SELECTOR, SKILLS_SELECTOR, WEAPON_ABILITY_SELECTOR
+from ul_house.config import EQUIP_ID_RE, ITEM_ID_RE, ABILITY_ID_RE, NUM_MAT_SEP, ABSENT_VAL
 
 
 def detail_url(equip_id: str) -> str:
@@ -18,7 +18,7 @@ def _pairs(node: Tag, next_sib: str, **kwargs) -> tuple[str, Tag] | None:
     return label, content
 
 
-def _match_re(regex: re.Pattern, node: Tag, attr: str) -> re.Match | None:
+def _match_re(regex: re.Pattern, node: Tag, attr: str) -> str | None:
     return regex.search(node.get(attr)).group(1) if node else None
 
 
@@ -40,7 +40,7 @@ def fetch_data(soup: BeautifulSoup) -> dict[str, str] | None:
     return data or None
 
 
-def fetch_stats(soup: BeautifulSoup) -> tuple[str, list[tuple[str, int]]] | None:
+def fetch_stats(soup: BeautifulSoup) -> dict[str, list[tuple[str, int]]] | None:
     stats = {}
     stat_labels = [_text(dd) for dd in soup.select(STATS_NAME_SELECTOR)[1:]]
     for dl in soup.select(STATS_SELECTOR)[1:]:
@@ -49,7 +49,7 @@ def fetch_stats(soup: BeautifulSoup) -> tuple[str, list[tuple[str, int]]] | None
         
         for i, label in enumerate(stat_labels):
             value = _text(stat_col[i])
-            if value != "-":
+            if value != ABSENT_VAL:
                 stats.setdefault(label, []).append((tier, int(value.replace(",", ""))))
 
     return stats or None
@@ -64,16 +64,22 @@ def fetch_ability(soup: BeautifulSoup) -> dict[str, str] | None:
 
         if label == "ability":
             info["name"] = _text(content)
-            info["uid"] = _match_re(_ABILITY_ID_RE, content.select_one(EQUIP_REF_TAG[0]), EQUIP_REF_TAG[1])
+            info["uid"] = _match_re(ABILITY_ID_RE, content.select_one(EQUIP_REF_TAG[0]), EQUIP_REF_TAG[1])
         elif label == "effect":
             info["effect"] = _text(content)
     return info or None
 
 
 
-def fetch_skills(soup: BeautifulSoup) -> dict[str, tuple[str, str]] | None:
+def fetch_skills(soup: BeautifulSoup) -> list[tuple[str, tuple[str, str] | dict[str, str] | str]] | None:
     """fetches proc, mon skill 1+2, passive, hidden potential, restrictions
-    returns : {heading: (skill_name, skill_effect)}
+
+    returns : [(heading, block)] in page order, where block is
+        (skill_name, skill_effect)  for 'skill' / 'skill #n' / 'passive skill'
+        {level_label: effect}       for 'hidden potential'
+        restriction_text            for 'restrictions'
+
+    a list of pairs, repeated blocks types ('skill #1' / 'skill #2') - headings not guaranteed unique
     """
     info = []
     current_skill = None
@@ -102,9 +108,9 @@ def fetch_skills(soup: BeautifulSoup) -> dict[str, tuple[str, str]] | None:
 
         if entry:
             if "potential" in heading:
-                info.append({heading: entry})
+                info.append((heading, entry))
             else:
-                info.append(entry)
+                info.extend(entry.items())
     return info or None
 
 
@@ -125,12 +131,12 @@ def _fetch_evo(soup: BeautifulSoup, selector: str) -> list[dict[str, dict[str, s
 
             if "before" in label:
                 entry["before"] = _text(content)
-                equip_id = _match_re(_EQUIP_ID_RE, content.select_one(EQUIP_REF_TAG[0]), EQUIP_REF_TAG[1])
+                equip_id = _match_re(EQUIP_ID_RE, content.select_one(EQUIP_REF_TAG[0]), EQUIP_REF_TAG[1])
                 if equip_id:
                     entry["before_id"] = equip_id
             elif "after" in label:
                 entry["after"] = _text(content)
-                equip_id = _match_re(_EQUIP_ID_RE, content.select_one(EQUIP_REF_TAG[0]), EQUIP_REF_TAG[1])
+                equip_id = _match_re(EQUIP_ID_RE, content.select_one(EQUIP_REF_TAG[0]), EQUIP_REF_TAG[1])
                 if equip_id:
                     entry["after_id"] = equip_id
         if entry:
@@ -143,7 +149,7 @@ def _fetch_reforge_mats(soup: BeautifulSoup) -> dict[str, dict[str, str | int]] 
     info = {}
     for dd in soup.select(REFORGE_MAT_SELECTOR):
         name = _text(dd)
-        ref_id = _match_re(_EQUIP_ID_RE, dd.select_one(EQUIP_REF_TAG[0]), EQUIP_REF_TAG[1])
+        ref_id = _match_re(EQUIP_ID_RE, dd.select_one(EQUIP_REF_TAG[0]), EQUIP_REF_TAG[1])
         if ref_id in info:
             info[ref_id]["quantity"] += 1
         else:
@@ -155,7 +161,7 @@ def fetch_reforge(soup: BeautifulSoup):
     return _fetch_evo(soup, REFORGE_SELECTOR), _fetch_reforge_mats(soup)
 
 
-def _fetch_sp_materials(soup: BeautifulSoup) -> list[dict[str, dict[set[str, str]]]] | None:
+def _fetch_sp_materials(soup: BeautifulSoup) -> list[dict[str, dict[str, tuple[str, str]]]] | None:
     """return : [{heading: {ref_id: (name, quantity)}}]"""
     mats = []
     for div in soup.select(SP_MAT_TITLE_SELECTOR):
@@ -164,16 +170,18 @@ def _fetch_sp_materials(soup: BeautifulSoup) -> list[dict[str, dict[set[str, str
         entry = {}
         for td in mats_div.select(SP_MAT_CONTENT_SELECTOR):
             if "gear" in heading:
-                ref_id = _match_re(_EQUIP_ID_RE, td.select_one(EQUIP_REF_TAG[0]), EQUIP_REF_TAG[1])
+                ref_id = _match_re(EQUIP_ID_RE, td.select_one(EQUIP_REF_TAG[0]), EQUIP_REF_TAG[1])
             elif "items" in heading:
-                ref_id = _match_re(_ITEM_ID_RE, td.select_one(ITEM_REF_TAG[0]), ITEM_REF_TAG[1])
+                ref_id = _match_re(ITEM_ID_RE, td.select_one(ITEM_REF_TAG[0]), ITEM_REF_TAG[1])
+            else:
+                continue
 
-            mat_info = _text(td).split(" × ")
+            mat_info = _text(td).split(NUM_MAT_SEP) #name x quantity
             if ref_id and mat_info:
-                entry[ref_id] = (mat_info[0], mat_info[1])
+                entry[ref_id] = (mat_info[0], mat_info[1]) if len(mat_info) == 2 else (mat_info[0], "1")
         if entry:
             mats.append({heading: entry})
     return mats or None
 
 def fetch_sp_evo(soup: BeautifulSoup):
-    return _fetch_evo(soup, "dl.detail__reincarnation"), _fetch_sp_materials(soup)
+    return _fetch_evo(soup, SP_EVO_SELECTOR), _fetch_sp_materials(soup)
