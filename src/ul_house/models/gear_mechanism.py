@@ -30,15 +30,15 @@ class ProcScaling:
 
 @dataclass(frozen=True, slots=True)
 class WeaponAbility(CombatMech):
-    id: str
+    uid: str
 
     @property
     def abiliy_url(self) -> str:
-        return f"{BASE_URL}/en/ability_detail/{self.id}.html"
+        return f"{BASE_URL}/en/ability_detail/{self.uid}.html"
 
     @property
     def icon_url(self) -> str:
-        return f"{BASE_URL}/images/ability/ability_{self.id}.png"
+        return f"{BASE_URL}/images/ability/ability_{self.uid}.png"
 
 
 @dataclass(frozen=True, slots=True)
