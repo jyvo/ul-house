@@ -1,18 +1,20 @@
 import re
 
+
 BASE_URL = "https://jam-capture-unisonleague-ww.ateamid.com"
-
-WEAPON_TYPES = ("Sword", "Axe", "Lance", "Scythe", "Bow", "Gun", "Staff", "Book", "Relic", "Dual Blade")
-STAT_LABELS = {"ATK", "MATK", "DEF", "MDEF"}
-
-# ref id url regex
-_EQUIP_ID_RE = re.compile(r"equip_detail/(\d+)\.html")
-_ITEM_ID_RE = re.compile(r"itemicon/item_(\d+)\.png")
-_ABILITY_ID_RE = re.compile(r"ability_detail/(\d+)\.html")
 
 # webpage query params
 PAGE_GROUPS = {"1": "weapon", "23": "armor", "4": "monster"}
 RARITY_SUFFIX = {"5": "UR", "4": "SSR"}
+
+WEAPON_TYPES = ("sword", "axe", "lance", "scythe", "bow", "gun", "staff", "book", "relic", "dual blade")
+MONSTER_TYPE = "monster"
+STAT_LABELS = {"ATK", "MATK", "DEF", "MDEF"}
+
+# ref id url regex
+EQUIP_ID_RE = re.compile(r"equip_detail/(\d+)\.html")
+ITEM_ID_RE = re.compile(r"itemicon/item_(\d+)\.png")
+ABILITY_ID_RE = re.compile(r"ability_detail/(\d+)\.html")
 
 # name tokens
 # progression gear suffixes
@@ -39,12 +41,19 @@ SP_MAT_CONTENT_SELECTOR = "table.data tbody tr td.special_evolution_material_blo
 EQUIP_REF_TAG = "a", "href"
 ITEM_REF_TAG = "img", "data-src"
 
-# heading labels
-
-
-SKILL_HEADING = "Skill" # Skill / Skill #1 / Skill #2
-PASSIVE_HEADING = "Passive Skill"
-HIDDEN_POTENTIAL_HEADING = "Hidden Potential" # shared with restrictions
-REFORGE_HEADING = "Reforge Info"
-AWAKENING_HEADING = "Awakening Info"
-ENLIGHTENING_HEADING = "Enlightening Info"
+# parser
+STAT_TIER_RE = re.compile(r"[^a-z0-9]")
+ABSENT_VAL = "-"
+NUM_MAT_SEP = " × "
+# - skill effect
+EFFECT_SPLIT_RE = re.compile(r"(?:^|\s)-(?=\S)")
+TARGET_RE = re.compile(r"^target:\s*(?P<target>[^.]+?)\s*\.\s*(?P<description>.+)$")
+# | proc
+SECTION_RE = re.compile(r"^\[(?P<name>[^\]]+)\]$")
+EFFECTS, ACTIVATION, ACTIVATION_RATE = "effects", "activation", "activation rate"
+SCALES = "scales"
+# | monster
+AMPLIFIER_RE = re.compile(r"\s*(ability power boosted by \d+ for each increase in skill level\.)\s*$")
+POTENTIAL_RE = re.compile(r"lv\s*(\d+)")
+SKILL_HEADING_RE = re.compile(r"^skill(\s*#\d+)?$")
+PASSIVE_HEADING = "passive skill"
