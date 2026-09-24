@@ -12,9 +12,10 @@ def _text(node: Tag | None) -> str:
     return node.get_text(" ", strip=True).casefold() if node is not None else ""
 
 
-def _pairs(node: Tag, next_sib: str, **kwargs) -> tuple[str, Tag] | None:
+def _pairs(node: Tag, next_sib: str, **kwargs) -> tuple[str, Tag | None]:
+    """label plus the sibling holding its content; kwargs filter that sibling (bs4 - class_=)"""
     label = _text(node)
-    content = node.find_next_sibling(next_sib)
+    content = node.find_next_sibling(next_sib, **kwargs)
     return label, content
 
 
@@ -165,7 +166,9 @@ def _fetch_sp_materials(soup: BeautifulSoup) -> list[dict[str, dict[str, tuple[s
     """return : [{heading: {ref_id: (name, quantity)}}]"""
     mats = []
     for div in soup.select(SP_MAT_TITLE_SELECTOR):
-        heading, mats_div = _pairs(div, "div", _class=SP_MAT_CONTENT_NAME)
+        heading, mats_div = _pairs(div, "div", class_=SP_MAT_CONTENT_NAME)
+        if mats_div is None:
+            continue
 
         entry = {}
         for td in mats_div.select(SP_MAT_CONTENT_SELECTOR):
