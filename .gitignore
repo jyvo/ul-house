@@ -1,2 +1,5 @@
 .DS_Store
 __pycache__
+
+# cached pages for testing (not distributed, files pulled within testing script)
+tests/data/
