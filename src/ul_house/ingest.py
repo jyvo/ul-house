@@ -90,7 +90,7 @@ def fetch_skills(soup: BeautifulSoup) -> dict[str, tuple[str, str]] | None:
                 continue
 
             if "potential" in heading:
-                entry[label] = content.get_text(strip=True)
+                entry[label] = _text(content)
             else:
                 if label == "skill name":
                     current_skill = _text(content)
