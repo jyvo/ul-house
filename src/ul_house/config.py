@@ -9,12 +9,12 @@ LIST_PAGE_GROUPS = {
     "4": "monster",
 }
 
-RARUTY_LIST_PAGE = {"5": "UR", "4": "SSR"}
+RARITY_LIST_PAGE = {"5": "UR", "4": "SSR"}
 
 LIST_SOURCES = tuple(
     (f"/en/equip_list/{group}_{suffix}.html", LIST_PAGE_GROUPS[group], rarity)
     for group in LIST_PAGE_GROUPS
-    for suffix, rarity in RARUTY_LIST_PAGE.items()
+    for suffix, rarity in RARITY_LIST_PAGE.items()
 )
 
 NEW_RELEASE_PATH = "/en/new_release_list.html"
