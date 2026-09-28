@@ -3,9 +3,21 @@ import re
 
 BASE_URL = "https://jam-capture-unisonleague-ww.ateamid.com"
 
-# webpage query params
-PAGE_GROUPS = {"1": "weapon", "23": "armor", "4": "monster"}
-RARITY_SUFFIX = {"5": "UR", "4": "SSR"}
+LIST_PAGE_GROUPS = {
+    "1": "weapon",
+    "23": "armor",
+    "4": "monster",
+}
+
+RARUTY_LIST_PAGE = {"5": "UR", "4": "SSR"}
+
+LIST_SOURCES = tuple(
+    (f"/en/equip_list/{group}_{suffix}.html", LIST_PAGE_GROUPS[group], rarity)
+    for group in LIST_PAGE_GROUPS
+    for suffix, rarity in RARUTY_LIST_PAGE.items()
+)
+
+NEW_RELEASE_PATH = "/en/new_release_list.html"
 
 WEAPON_TYPES = ("sword", "axe", "lance", "scythe", "bow", "gun", "staff", "book", "relic", "dual blade")
 MONSTER_TYPE = "monster"
