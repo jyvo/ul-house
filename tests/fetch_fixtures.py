@@ -9,7 +9,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from ul_house.config import USER_AGENT, detail_url  # noqa: E402
+from ul_house.config import USER_AGENT, detail_url
 
 DATA_DIR = Path(__file__).parent / "data"
 
