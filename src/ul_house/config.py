@@ -1,8 +1,18 @@
 import re
+from importlib.metadata import PackageNotFoundError, version
 
 
 BASE_URL = "https://jam-capture-unisonleague-ww.ateamid.com"
 
+try:
+    CRAWLER_VERSION = version("ul-house")
+except PackageNotFoundError:
+    CRAWLER_VERSION = "0"
+PROJECT_URL = "https://github.com/jyvo/ul-house"
+CONTACT_URL = f"{PROJECT_URL}/issues"
+USER_AGENT = f"ul-house/{CRAWLER_VERSION} (+{CONTACT_URL})"
+
+# list pages -- the crawl frontier, never parsed into models
 LIST_PAGE_GROUPS = {
     "1": "weapon",
     "23": "armor",
@@ -28,10 +38,6 @@ EQUIP_ID_RE = re.compile(r"equip_detail/(\d+)\.html")
 ITEM_ID_RE = re.compile(r"itemicon/item_(\d+)\.png")
 ABILITY_ID_RE = re.compile(r"ability_detail/(\d+)\.html")
 
-# name tokens
-# progression gear suffixes
-PROGRESSION_TOKENS = ("xeno", "sopho")
-EXCLUDED_NAME_TOKENS = ("awakening ninoyu",)
 
 # soup selectors 
 HEADING_SELECTOR = "p.title_bar--text"
