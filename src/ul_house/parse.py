@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 
 from ul_house.config import STAT_TIER_RE, EFFECT_SPLIT_RE, TARGET_RE, SECTION_RE, AMPLIFIER_RE, POTENTIAL_RE, SKILL_HEADING_RE
 from ul_house.config import PASSIVE_HEADING, ABSENT_VAL, EFFECTS, ACTIVATION, ACTIVATION_RATE, SCALES, WEAPON_TYPES, MONSTER_TYPE
-from ul_house.fetch import fetch_name, fetch_data, fetch_stats, fetch_ability, fetch_skills, fetch_reforge, fetch_sp_evo
+from ul_house.extract import fetch_name, fetch_data, fetch_stats, fetch_ability, fetch_skills, fetch_reforge, fetch_sp_evo
 
 from ul_house.data.elements import ELEMENT
 from ul_house.models.equipment import ItemRef, EquipmentRef, Weapon, DefensiveGear, Monster, Stats
