@@ -1,0 +1,33 @@
+[cost]
+min      = 42
+max      = 98
+cosmetic = 99
+
+[rarity]
+include = ["UR"]
+
+[names]
+excluded = ["awakening ninoyu"]
+bypass   = ["xeno", "sopho"]
+
+[evolution]
+follow           = ["reforge", "awakening", "enlightening"]
+direction        = "predecessors"       # predecessors | successors | both
+depth            = 1                    # num hops from kept (0 disables)
+policy           = "reference"          # exclude | reference | catalog
+override_filters = true                 # bypass cost/rarity rules
+
+[evolution.per_chain]                   # optional overrides
+reforge      = { policy = "catalog" }   # pre-reforge SSR forms may be worth tracking
+enlightening = { depth = 2 }
+
+[crawl]
+request_interval         = 0.15         # throughput ceiling (1 / this)
+max_retries              = 4
+connect_timeout          = 5.0
+read_timeout             = 15.0         # worst case
+full_crawl_interval_days = 30
+
+[revalidate]
+ci_shards  = 4                          # CI covers a quarter of catalog per weekly run
+app_budget = 200                        # items app revalidates per launch (from a saved cursor)
