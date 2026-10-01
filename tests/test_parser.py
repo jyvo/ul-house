@@ -91,6 +91,7 @@ class TestMonster:
     def test_restrictions_captured(self, soups):
         potential = parse(soups["1500502"], "1500502").hidden_potential
         assert potential.restrictions.startswith("[raging howl fatewoven]")
+        assert potential.restrictions.endswith("can be used as fodder.")
 
     def test_no_hidden_potential(self, soups):
         monster = parse(soups[SSR_REFORGE_UID], SSR_REFORGE_UID)
