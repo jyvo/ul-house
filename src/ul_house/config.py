@@ -29,6 +29,26 @@ LIST_SOURCES = tuple(
 
 NEW_RELEASE_PATH = "/en/new_release_list.html"
 
+def detail_path(equip_id: str) -> str:
+    """page-store key: urls are stored relative to BASE_URL"""
+    return f"/en/equip_detail/{equip_id}.html"
+
+
+def detail_url(equip_id: str) -> str:
+    return f"{BASE_URL}{detail_path(equip_id)}"
+
+# list row
+LIST_ROW_SELECTOR = "td.filter"
+LIST_ROW_NAME_SELECTOR = "p.list_item_name"
+LIST_ROW_INPUT = "input[name=unisonleague_{field}]"
+LIST_ROW_FIELDS = ("type", "attribute", "cost")
+
+# evo links (crawl reads these without going through parse)
+EVO_LINK_LABEL_SELECTOR = "dt.detail__evo--last"
+EVO_LINK_NAME_SELECTOR = "p.evo_name"
+EVO_LINK_RE = re.compile(r"^(?P<side>before|after)\s+(?P<kind>reforging|awakening|enlightening)$")
+EVO_KIND = {"reforging": "reforge", "awakening": "awakening", "enlightening": "enlightening"}
+
 WEAPON_TYPES = ("sword", "axe", "lance", "scythe", "bow", "gun", "staff", "book", "relic", "dual blade")
 MONSTER_TYPE = "monster"
 STAT_LABELS = {"atk", "matk", "def", "mdef"}
