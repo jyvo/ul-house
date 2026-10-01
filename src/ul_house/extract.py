@@ -1,11 +1,22 @@
+import copy
 import re
 from bs4 import BeautifulSoup, Tag
 from ul_house.config import BASIC_DATA_SELECTOR, EQUIP_REF_TAG, HEADING_SELECTOR, ITEM_REF_TAG, NAME_SELECTOR, REFORGE_MAT_SELECTOR, REFORGE_SELECTOR, SP_EVO_SELECTOR, SP_MAT_CONTENT_NAME, SP_MAT_CONTENT_SELECTOR, SP_MAT_TITLE_SELECTOR, STATS_NAME_SELECTOR, STATS_SELECTOR, SKILLS_SELECTOR, WEAPON_ABILITY_SELECTOR
-from ul_house.config import EQUIP_ID_RE, ITEM_ID_RE, ABILITY_ID_RE, NUM_MAT_SEP, ABSENT_VAL
+from ul_house.config import EQUIP_ID_RE, ITEM_ID_RE, ABILITY_ID_RE, NUM_MAT_SEP, ABSENT_VAL, RESTRICTION_NOTE_SELECTOR
 
 
 def _text(node: Tag | None) -> str:
     return node.get_text(" ", strip=True).casefold() if node is not None else ""
+
+
+def _own_text(node: Tag | None, nested: str) -> str:
+    """_text() of node without nested blocks (specifically for restriction note)"""
+    if node is None:
+        return ""
+    node = copy.copy(node)
+    for block in node.select(nested):
+        block.decompose()
+    return _text(node)
 
 
 def _pairs(node: Tag, next_sib: str, **kwargs) -> tuple[str, Tag | None]:
@@ -74,7 +85,7 @@ def fetch_skills(soup: BeautifulSoup) -> list[tuple[str, tuple[str, str] | dict[
     returns : [(heading, block)] in page order, where block is
         (skill_name, skill_effect)  for 'skill' / 'skill #n' / 'passive skill'
         {level_label: effect}       for 'hidden potential'
-        restriction_text            for 'restrictions'
+        restriction_text            for 'restrictions' (the <dd> text only, not its caution note)
 
     a list of pairs, repeated blocks types ('skill #1' / 'skill #2') - headings not guaranteed unique
     """
@@ -101,7 +112,7 @@ def fetch_skills(soup: BeautifulSoup) -> list[tuple[str, tuple[str, str] | dict[
                     entry[heading] = (current_skill, _text(content))
                     current_skill = None
                 elif "restrictions" in label:
-                    entry[label] = _text(content)
+                    entry[label] = _own_text(content, RESTRICTION_NOTE_SELECTOR)
 
         if entry:
             if "potential" in heading:

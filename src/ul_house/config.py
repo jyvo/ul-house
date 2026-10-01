@@ -73,6 +73,8 @@ SP_EVO_SELECTOR = "dl.detail__reincarnation"
 SP_MAT_TITLE_SELECTOR = "div.sp_evo_title"
 SP_MAT_CONTENT_NAME = "sp_evo_contents"
 SP_MAT_CONTENT_SELECTOR = "table.data tbody tr td.special_evolution_material_block"
+# void selector in restriction note
+RESTRICTION_NOTE_SELECTOR = "div"
 
 # ref selectors
 EQUIP_REF_TAG = "a", "href"
