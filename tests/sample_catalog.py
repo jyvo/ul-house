@@ -449,7 +449,7 @@ FATEWOVEN_MON = Monster(
                 )
             )
         ),
-        restrictions="[raging howl fatewoven] fermuraze or ninoyu with the same or higher cost of the base monster can be used as fodder. *specific monsters may also be used. see the help section for details."
+        restrictions="[raging howl fatewoven] fermuraze or ninoyu with the same or higher cost of the base monster can be used as fodder."
     )
 )
 
