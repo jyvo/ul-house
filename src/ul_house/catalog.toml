@@ -25,7 +25,8 @@ enlightening = { depth = 2 }
 request_interval         = 0.15         # throughput ceiling (1 / this)
 max_retries              = 4
 connect_timeout          = 5.0
-read_timeout             = 15.0         # worst case
+read_timeout             = 15.0         # per socket
+request_deadline         = 30.0         # including worst case
 full_crawl_interval_days = 30
 
 [revalidate]
