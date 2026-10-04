@@ -41,7 +41,6 @@ def detail_url(equip_id: str) -> str:
 LIST_ROW_SELECTOR = "td.filter"
 LIST_ROW_NAME_SELECTOR = "p.list_item_name"
 LIST_ROW_INPUT = "input[name=unisonleague_{field}]"
-LIST_ROW_FIELDS = ("type", "attribute", "cost")
 
 # evo links (crawl reads these without going through parse)
 EVO_LINK_LABEL_SELECTOR = "dt.detail__evo--last"
