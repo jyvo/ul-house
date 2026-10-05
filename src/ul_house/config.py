@@ -52,6 +52,9 @@ WEAPON_TYPES = ("sword", "axe", "lance", "scythe", "bow", "gun", "staff", "book"
 MONSTER_TYPE = "monster"
 STAT_LABELS = {"atk", "matk", "def", "mdef"}
 
+# small icons
+EQUIP_ICON_PATH = "/images/equipicon/{uid}.png"
+
 # ref id url regex
 EQUIP_ID_RE = re.compile(r"equip_detail/(\d+)\.html")
 ITEM_ID_RE = re.compile(r"itemicon/item_(\d+)\.png")
