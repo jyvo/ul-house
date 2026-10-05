@@ -406,7 +406,7 @@ class Store:
             raise ValueError(f"no asset target {url}")
 
     def asset(self, url: str) -> sqlite3.Row | None:
-        return self.conn.execute(f"SELECT {self._ASSET_COLUMNS} FROM asset WHERE url = ?", (url,)).fetchone()
+        return self.conn.execute(f"SELECT {_ASSET_COLUMNS} FROM asset WHERE url = ?", (url,)).fetchone()
 
     def asset_body(self, url: str) -> bytes | None:
         row = self.conn.execute("SELECT body FROM asset WHERE url = ?", (url,)).fetchone()
@@ -420,10 +420,10 @@ class Store:
         return Validators(row["etag"], row["last_modified"]) if row else None
 
     def assets_for(self, item_id: str) -> list[sqlite3.Row]:
-        return self.conn.execute(f"SELECT {self._ASSET_COLUMNS} FROM asset WHERE item_id = ? ORDER BY url", (item_id,)).fetchall()
+        return self.conn.execute(f"SELECT {_ASSET_COLUMNS} FROM asset WHERE item_id = ? ORDER BY url", (item_id,)).fetchall()
 
     def unfetched_assets(self, run_id: int) -> list[sqlite3.Row]:
-        columns = ", ".join(f"a.{c.strip()}" for c in self._ASSET_COLUMNS.split(","))
+        columns = ", ".join(f"a.{c.strip()}" for c in _ASSET_COLUMNS.split(","))
         return self.conn.execute(
             f"SELECT {columns} FROM asset a JOIN frontier f ON f.item_id = a.item_id "
             "WHERE a.fetched_at IS NULL AND f.decided_run_id = ? ORDER BY a.url",
