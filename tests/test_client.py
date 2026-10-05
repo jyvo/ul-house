@@ -5,9 +5,14 @@ from datetime import datetime, timedelta, timezone
 import pytest
 import requests
 
-from local_server import LocalServer, Reply
+from local_server import LocalServer, Reply, RawServer
 from ul_house.config import USER_AGENT
-from ul_house.http.client import Client, FetchError, Stopped, Throttle, retry_after_seconds
+from ul_house.http.client import RETRY_STATUSES, Client, FetchError, Stopped, Throttle, retry_after_seconds
+
+
+OK_BODY = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+SHORT_BODY = b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\nConnection: close\r\n\r\nonly-ten!!"
+CUT_CHUNKED = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n5\r\nhello\r\n"
 
 
 @pytest.fixture
@@ -129,6 +134,35 @@ class TestGet:
         assert min(gaps) >= 0.05
 
 
+class TestResponseHeaders:
+    def test_headers_are_case_insensitive_on_every_status(self, server):
+        server.route("/a.html", Reply(200, b"ok", {"X-API-Commit": "abc123"}))
+        server.route("/n.html", Reply(304, headers={"X-UL-To-Revision": "7"}))
+        server.route("/t.html", Reply(429, headers={"X-API-Commit": "def"}))
+        with make_client(server, max_retries=0) as client:
+            ok = client.get("/a.html")
+            assert ok.headers["x-api-commit"] == "abc123" and ok.headers["X-API-Commit"] == "abc123"
+            assert client.get("/n.html").headers["x-ul-to-revision"] == "7"
+            assert client.get("/t.html").headers.get("X-Api-Commit") == "def"
+
+    def test_headers_come_from_the_final_hop(self, server):
+        server.route("/r.html", Reply(302, headers={"Location": "/b.html", "X-API-Commit": "first"}))
+        server.route("/b.html", Reply(200, b"ok", {"X-API-Commit": "last"}))
+        with make_client(server) as client:
+            assert client.get("/r.html").headers["x-api-commit"] == "last"
+
+
+class TestResponseHeadersDefault:
+    def test_headers_default_to_empty_and_do_not_affect_equality(self):
+        from ul_house.http.client import Response
+
+        fields = dict(path="/a.html", status=200, body=b"x", etag=None, last_modified=None,
+                      content_type=None, final_url="http://h/a.html")
+        bare = Response(**fields)
+        assert len(bare.headers) == 0 and bare.headers.get("X-Anything") is None
+        assert bare == Response(**fields, headers={"X-API-Commit": "abc"})
+
+
 class TestRetries:
     def test_retry_then_success(self, server):
         server.route("/a.html", [Reply(503), Reply(502), Reply(200, b"ok")])
@@ -148,6 +182,17 @@ class TestRetries:
             client.get("/a.html")
         first, second = server.hits("/a.html")
         assert second.at - first.at >= 0.95
+
+    def test_retry_statuses_can_exclude_429(self, server):
+        server.route("/a.html", [Reply(429, headers={"Retry-After": "0"}), Reply(200, b"ok")])
+        with make_client(server, max_retries=2, backoff_base=0, retry_statuses=RETRY_STATUSES - {429}) as client:
+            assert client.get("/a.html").status == 429
+        assert len(server.hits("/a.html")) == 1
+
+        server.route("/b.html", [Reply(429, headers={"Retry-After": "0"}), Reply(200, b"ok")])
+        with make_client(server, max_retries=2, backoff_base=0) as client:
+            assert client.get("/b.html").status == 200
+        assert len(server.hits("/b.html")) == 2
 
     def test_retries_take_throttle_slots(self, server):
         server.route("/a.html", [Reply(503), Reply(200, b"ok")])
@@ -241,3 +286,99 @@ class TestStop:
             with pytest.raises(Stopped):
                 client.get("/a.html")
             assert time.monotonic() - began < 0.5
+
+
+def raw_client(server, **kw):
+    kw.setdefault("interval", 0.0)
+    kw.setdefault("backoff_base", 0.01)
+    kw.setdefault("timeout", (1.0, 1.0))
+    return Client(server.base_url, **kw)
+
+
+class TestTruncatedBodies:
+    """body cut off mid transfer"""
+
+    @pytest.mark.parametrize("broken", [SHORT_BODY, CUT_CHUNKED], ids=["short-content-length", "cut-chunked"])
+    def test_retried_then_succeeds(self, broken):
+        with RawServer([broken, OK_BODY]) as server, raw_client(server) as client:
+            assert client.get("/x").body == b"ok"
+            assert server.connections == 2
+
+    @pytest.mark.parametrize("broken", [SHORT_BODY, CUT_CHUNKED], ids=["short-content-length", "cut-chunked"])
+    def test_exhausted_is_a_fetch_error(self, broken):
+        with RawServer([broken]) as server, raw_client(server, max_retries=1) as client:
+            with pytest.raises(FetchError):
+                client.get("/x")
+            assert server.connections == 2
+
+
+class TestDeadline:
+    """read timeout is per-read (deadline is total allowance)"""
+
+    DRIP = (b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\n", [b"x"] * 5, 0.2)
+
+    def test_slow_drip_is_cut_off(self):
+        """every read is well inside the 1 s read timeout; only the deadline can stop it"""
+        with RawServer([self.DRIP]) as server, raw_client(server, max_retries=0, deadline=0.3) as client:
+            began = time.monotonic()
+            with pytest.raises(FetchError, match="DeadlineExceeded"):
+                client.get("/x")
+            assert time.monotonic() - began < 0.8      # the drip alone would take 1.0 s
+
+    def test_drip_within_the_deadline_is_fine(self):
+        with RawServer([self.DRIP]) as server, raw_client(server, deadline=10) as client:
+            assert client.get("/x").body == b"x" * 5
+
+    def test_deadline_must_be_positive(self):
+        with pytest.raises(ValueError):
+            Client("http://127.0.0.1:9", deadline=0)
+
+
+class TestRetryAfterWithoutZone:
+    """HTTP-date with no zone is read as GMT instead of raising TypeError"""
+
+    def test_naive_date(self):
+        now = datetime(2026, 9, 30, 10, 0, 0, tzinfo=timezone.utc)
+        assert retry_after_seconds("Wed, 30 Sep 2026 10:00:30", now) == pytest.approx(30)
+
+    def test_naive_date_in_a_live_retry(self, server):
+        server.route("/a.html", [Reply(503, headers={"Retry-After": "Wed, 30 Sep 2026 10:00:00"}), Reply(200, b"ok")])
+        with make_client(server) as client:
+            assert client.get("/a.html").body == b"ok"
+
+
+class TestRedirectEdges:
+    """validators stay with the url they describe"""
+
+    def test_conditional_headers_are_not_forwarded(self, server):
+        server.route("/old.html", Reply(301, headers={"Location": "/new.html"}))
+        server.route("/new.html", Reply(200, b"new"))
+        with make_client(server) as client:
+            client.get("/old.html", {"If-None-Match": '"v1"', "If-Modified-Since": "Mon"})
+        (old,), (new,) = server.hits("/old.html"), server.hits("/new.html")
+        assert old.headers.get("If-None-Match") == '"v1"'
+        assert "If-None-Match" not in new.headers and "If-Modified-Since" not in new.headers
+
+    def test_explicit_default_port_is_the_same_origin(self):
+        client = Client("https://jam-capture-unisonleague-ww.ateamid.com")
+        assert client.same_origin("https://jam-capture-unisonleague-ww.ateamid.com:443/en/a.html")
+        assert client.same_origin("HTTPS://JAM-CAPTURE-UNISONLEAGUE-WW.ATEAMID.COM/en/a.html")
+        assert not client.same_origin("https://jam-capture-unisonleague-ww.ateamid.com:8443/en/a.html")
+        assert not client.same_origin("http://jam-capture-unisonleague-ww.ateamid.com:443/en/a.html")
+
+
+class TestBodyDecoding:
+    """reading the body by hand must match decoded requests"""
+
+    def test_gzip_body_is_decoded(self, server):
+        import gzip
+
+        page = b"<html>" + b"row " * 20000 + b"</html>"
+        server.route("/g.html", Reply(200, gzip.compress(page), {"Content-Encoding": "gzip"}))
+        with make_client(server) as client:
+            assert client.get("/g.html").body == page
+
+    def test_empty_200_is_empty_bytes(self, server):
+        server.route("/e.html", Reply(200, b""))
+        with make_client(server) as client:
+            assert client.get("/e.html").body == b""

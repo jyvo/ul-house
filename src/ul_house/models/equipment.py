@@ -5,7 +5,7 @@ from abc import ABC
 from ul_house.models.combat_mechanism import Element
 from ul_house.models.gear_mechanism import Proc, WeaponAbility, MonsterSkill, PassiveSkill, HiddenPotential
 from ul_house.models.gear_evolution import Reforge, Awakening, Enlightening
-from ul_house.config import BASE_URL
+from ul_house.config import BASE_URL, EQUIP_ICON_PATH
 
 @dataclass(frozen=True, slots=True)
 class ItemRef:
@@ -25,7 +25,7 @@ class EquipmentRef(ItemRef):
 
     @property
     def icon_url(self) -> str:
-        return f"{BASE_URL}/images/equipicon/{self.uid}.png"
+        return f"{BASE_URL}{EQUIP_ICON_PATH.format(uid=self.uid)}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,9 +70,7 @@ class Stats:
     label: str      # stat label/name
     values: tuple[tuple[str, int], ...]       # tier: value, e.g. ("initial", 100)
 
-    # change slotted as a property call
     @property
-    def slotted(self) -> bool:
-        return "stat" not in self.label.casefold()
-
+    def assignable(self) -> bool:
+        return "stat" in self.label.casefold()
     

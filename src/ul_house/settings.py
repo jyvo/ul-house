@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import tomllib
 import warnings
 from collections.abc import Mapping
@@ -18,6 +19,7 @@ EVO_KINDS = tuple(EVO_KIND.values())                     # reforge, awakening, e
 DIRECTIONS = ("predecessors", "successors", "both")
 POLICIES = ("exclude", "reference", "catalog")
 RARITIES = tuple(RARITY_LIST_PAGE.values())
+TOP_LEVEL = ""
 
 
 class ScopeError(ValueError):
@@ -26,14 +28,15 @@ class ScopeError(ValueError):
 
 # read table
 def _table(data: Any, where: str, required: set[str], optional: set[str] = frozenset()) -> Mapping[str, Any]:
+    label = f"[{where}]" if where else "top level"      # top level of catalog.toml is not a table
     if not isinstance(data, Mapping):
-        raise ScopeError(f"[{where}] must be a table")
+        raise ScopeError(f"{label} must be a table")
     unknown = set(data) - required - optional
     if unknown:
-        raise ScopeError(f"[{where}] unknown key(s): {', '.join(sorted(unknown))}")
+        raise ScopeError(f"{label} unknown key(s): {', '.join(sorted(unknown))}")
     missing = required - set(data)
     if missing:
-        raise ScopeError(f"[{where}] missing key(s): {', '.join(sorted(missing))}")
+        raise ScopeError(f"{label} missing key(s): {', '.join(sorted(missing))}")
     return data
 
 
@@ -44,8 +47,8 @@ def _is_int(value: Any, where: str) -> int:
 
 
 def _is_float(value: Any, where: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ScopeError(f"{where} must be a number, got {value!r}")
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise ScopeError(f"{where} must be a finite number, got {value!r}")
     return float(value)
 
 
@@ -123,7 +126,7 @@ class NameRules:
             if not token.strip():
                 raise ScopeError("names tokens must not be blank")
             if token != token.casefold():
-                raise ScopeError(f"names token {token!r} must be lower case")
+                raise ScopeError(f"names token {token!r} must be lowercase")
         overlap = set(self.excluded) & set(self.bypass)
         if overlap:
             raise ScopeError(f"names.bypass and names.excluded overlap: {', '.join(sorted(overlap))}")
@@ -169,6 +172,8 @@ class EvolutionRule:
     def __post_init__(self):
         for kind in self.follow:
             _one_of(kind, EVO_KINDS, "evolution.follow")
+        if len(set(self.follow)) != len(self.follow):
+            raise ScopeError("evolution.follow has dupes")
         _one_of(self.direction, DIRECTIONS, "evolution.direction")
         _one_of(self.policy, POLICIES, "evolution.policy")
         if self.depth < 0:
@@ -224,7 +229,7 @@ class CrawlConfig:
     max_retries: int
     connect_timeout: float
     read_timeout: float
-    full_crawl_interval_days: int
+    request_deadline: float
 
     def __post_init__(self):
         if self.request_interval <= 0:
@@ -233,8 +238,8 @@ class CrawlConfig:
             raise ScopeError("crawl.max_retries must be >= 0")
         if self.connect_timeout <= 0 or self.read_timeout <= 0:
             raise ScopeError("crawl timeouts must be > 0")
-        if self.full_crawl_interval_days < 1:
-            raise ScopeError("crawl.full_crawl_interval_days must be >= 1")
+        if self.request_deadline < self.read_timeout:
+            raise ScopeError("crawl.request_deadline must be >= crawl.read_timeout")
 
     @classmethod
     def from_mapping(cls, data) -> CrawlConfig:
@@ -244,7 +249,7 @@ class CrawlConfig:
             max_retries=_is_int(t["max_retries"], "crawl.max_retries"),
             connect_timeout=_is_float(t["connect_timeout"], "crawl.connect_timeout"),
             read_timeout=_is_float(t["read_timeout"], "crawl.read_timeout"),
-            full_crawl_interval_days=_is_int(t["full_crawl_interval_days"], "crawl.full_crawl_interval_days"),
+            request_deadline=_is_float(t["request_deadline"], "crawl.request_deadline"),
         )
 
     @property
@@ -254,17 +259,16 @@ class CrawlConfig:
 
 @dataclass(frozen=True)
 class RevalidateConfig:
-    ci_shards: int
-    app_budget: int
+    cycle_days: int         # daily run revalidates 1/cycle_days of the catalog
 
     def __post_init__(self):
-        if self.ci_shards < 1 or self.app_budget < 1:
-            raise ScopeError("revalidate.ci_shards and revalidate.app_budget must be >= 1")
+        if self.cycle_days < 1:
+            raise ScopeError("revalidate.cycle_days must be >= 1")
 
     @classmethod
     def from_mapping(cls, data) -> RevalidateConfig:
-        t = _table(data, "revalidate", {"ci_shards", "app_budget"})
-        return cls(_is_int(t["ci_shards"], "revalidate.ci_shards"), _is_int(t["app_budget"], "revalidate.app_budget"))
+        t = _table(data, "revalidate", {"cycle_days"})
+        return cls(_is_int(t["cycle_days"], "revalidate.cycle_days"))
 
 
 # scope/baseline/specifications
@@ -279,7 +283,7 @@ class Scope:
 
     @classmethod
     def from_mapping(cls, data: Mapping[str, Any]) -> Scope:
-        t = _table(data, "scope", {"cost", "rarity", "names", "evolution", "crawl", "revalidate"})
+        t = _table(data, TOP_LEVEL, {"cost", "rarity", "names", "evolution", "crawl", "revalidate"})
         return cls(
             cost=CostBand.from_mapping(t["cost"]),
             rarity=RarityRule.from_mapping(t["rarity"]),
@@ -308,7 +312,7 @@ class Scope:
             "names": {"excluded": list(self.names.excluded), "bypass": list(self.names.bypass)},
             "evolution": evolution,
             "crawl": {f.name: getattr(self.crawl, f.name) for f in fields(self.crawl)},
-            "revalidate": {"ci_shards": self.revalidate.ci_shards, "app_budget": self.revalidate.app_budget},
+            "revalidate": {"cycle_days": self.revalidate.cycle_days},
         }
 
     def stamp(self) -> str:
@@ -320,15 +324,19 @@ class Scope:
         return cls.from_mapping(json.loads(stamp))
 
     def fingerprint(self) -> str:
-        return hashlib.sha256(self.stamp().encode()).hexdigest()
+        mapping = self.to_mapping()
+        selection = {key: mapping[key] for key in ("cost", "rarity", "names", "evolution")}
+        return hashlib.sha256(json.dumps(selection, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
 def load_scope(path: str | Path = CATALOG_PATH) -> Scope:
-    with open(path, "rb") as fh:
-        try:
+    try:
+        with open(path, "rb") as fh:
             data = tomllib.load(fh)
-        except tomllib.TOMLDecodeError as exc:
-            raise ScopeError(f"{path}: {exc}") from exc
+    except FileNotFoundError as exc:
+        raise ScopeError(f"{path}: no such catalog file") from exc
+    except tomllib.TOMLDecodeError as exc:
+        raise ScopeError(f"{path}: {exc}") from exc
     return Scope.from_mapping(data)
 
 
@@ -340,6 +348,15 @@ class UserSettings:
     rarity_include: tuple[str, ...]
     names_excluded: tuple[str, ...] = ()
     evolution_policy: str = "reference"
+
+    def __post_init__(self):
+        _is_int(self.cost_min, "cost_min")
+        _is_int(self.cost_max, "cost_max")
+        if self.cost_min > self.cost_max:
+            raise ScopeError(f"cost_min {self.cost_min} is above cost_max {self.cost_max}")
+        if not self.rarity_include:
+            raise ScopeError("rarity_include must name at least one rarity")
+        _one_of(self.evolution_policy, POLICIES, "evolution_policy")
 
     @classmethod
     def from_scope(cls, scope: Scope) -> UserSettings:
@@ -357,24 +374,23 @@ def clamp(wanted: UserSettings, scope: Scope) -> ScopeRestriction:
     """anything outside the scope is not in app.sqlite"""
     widened = []
 
-    cost_min = max(wanted.cost_min, scope.cost.min)
+    def into_band(value: int) -> int:
+        return min(max(value, scope.cost.min), scope.cost.max)
+
+    cost_min, cost_max = into_band(wanted.cost_min), into_band(wanted.cost_max)
     if cost_min != wanted.cost_min:
         widened.append("cost_min")
-    cost_max = min(wanted.cost_max, scope.cost.max)
     if cost_max != wanted.cost_max:
         widened.append("cost_max")
-    cost_max = max(cost_max, cost_min)
 
     if set(wanted.rarity_include) - set(scope.rarity.include):
         widened.append("rarity_include")
     rarity = tuple(r for r in scope.rarity.include if r in wanted.rarity_include) or scope.rarity.include
 
     wanted_excluded = tuple(token.casefold() for token in wanted.names_excluded)
-    if set(scope.names.excluded) - set(wanted_excluded):
-        widened.append("names_excluded")
     excluded = tuple(dict.fromkeys(scope.names.excluded + wanted_excluded))
 
-    policy = _one_of(wanted.evolution_policy, POLICIES, "evolution_policy")
+    policy = wanted.evolution_policy
     if POLICIES.index(policy) > POLICIES.index(scope.evolution.policy):
         widened.append("evolution_policy")
         policy = scope.evolution.policy
