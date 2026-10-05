@@ -92,3 +92,49 @@ class TestCrawlDelay:
         with client_for(server) as client:
             robots.apply(robots.load(client), client)
             assert client.throttle.interval == 0.0
+
+
+class TestReviewFixes:
+    def test_429_is_unreachable(self, server):
+        server.route("/robots.txt", Reply(429))
+        with client_for(server) as client:
+            gate = robots.load(client)
+        assert (gate.state, gate.status) == ("unreachable", 429)
+        assert not gate.allowed("/en/equip_detail/1.html")
+
+    def test_other_4xx_still_absent(self, server):
+        server.route("/robots.txt", Reply(403))
+        with client_for(server) as client:
+            assert robots.load(client).state == "absent"
+
+    def test_byte_order_mark_doesntt_hide_first_group(self, server):
+        server.route("/robots.txt", Reply(200, "﻿User-agent: *\nDisallow: /en/\n".encode("utf-8"),
+                                          {"Content-Type": "text/plain"}))
+        with client_for(server) as client:
+            gate = robots.load(client)
+        assert not gate.allowed("/en/equip_detail/1.html")
+
+    def test_fractional_crawl_delay(self, server):
+        server.route("/robots.txt", text("User-agent: *\nCrawl-delay: 0.5\n"))
+        with Client(server.base_url, interval=0.15, max_retries=0) as client:
+            gate = robots.load(client)
+            assert gate.crawl_delay() == 0.5
+            robots.apply(gate, client)
+            assert client.throttle.interval == 0.5
+
+    def test_our_group_beats_wildcard(self, server):
+        server.route("/robots.txt", text(
+            "User-agent: *\nCrawl-delay: 1\n\nUser-agent: ul-house\nCrawl-delay: 2.5\n"))
+        with client_for(server) as client:
+            assert robots.load(client).crawl_delay() == 2.5
+
+    def test_another_agents_delay_doesnt_apply(self, server):
+        server.route("/robots.txt", text("User-agent: otherbot\nCrawl-delay: 9\n"))
+        with client_for(server) as client:
+            assert robots.load(client).crawl_delay() is None
+
+    @pytest.mark.parametrize("value", ["soon", "nan", "-1"])
+    def test_unusable_delay_ignored(self, server, value):
+        server.route("/robots.txt", text(f"User-agent: *\nCrawl-delay: {value}\n"))
+        with client_for(server) as client:
+            assert robots.load(client).crawl_delay() is None

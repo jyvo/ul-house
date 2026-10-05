@@ -85,3 +85,56 @@ class LocalServer:
     def __exit__(self, *exc) -> None:
         self.httpd.shutdown()
         self.httpd.server_close()
+
+
+class RawServer:
+    """serves exact bytes, one payload per connection (last repeats)"""
+
+    def __init__(self, payloads):
+        import socket       #might look to lazy load
+
+        self.payloads = list(payloads)
+        self.connections = 0
+        self.sock = socket.socket()
+        self.sock.bind(("127.0.0.1", 0))
+        self.sock.listen(8)
+        self.sock.settimeout(0.2)
+        self._closing = threading.Event()
+        self.thread = threading.Thread(target=self._serve, daemon=True)
+
+    @property
+    def base_url(self) -> str:
+        return f"http://127.0.0.1:{self.sock.getsockname()[1]}"
+
+    def _serve(self):
+        while not self._closing.is_set():
+            try:
+                conn, _ = self.sock.accept()
+            except OSError:
+                continue
+            payload = self.payloads.pop(0) if len(self.payloads) > 1 else self.payloads[0]
+            self.connections += 1
+            try:
+                conn.recv(65536)
+                if isinstance(payload, tuple):
+                    head, drips, gap = payload
+                    conn.sendall(head)
+                    for drip in drips:
+                        if self._closing.wait(gap):
+                            break
+                        conn.sendall(drip)
+                else:
+                    conn.sendall(payload)
+            except OSError:
+                pass
+            finally:
+                conn.close()
+
+    def __enter__(self) -> "RawServer":
+        self.thread.start()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self._closing.set()
+        self.thread.join(timeout=2)
+        self.sock.close()
