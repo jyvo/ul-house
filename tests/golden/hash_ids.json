@@ -1,0 +1,274 @@
+{
+  "spec": "each field as text (str as-is, int decimal, None ''), joined by U+001F, UTF-8, sha256, first 8 bytes big-endian unsigned & 0x7FFFFFFFFFFFFFFF. read in Python (ints exceed 2^53)",
+  "vectors": [
+    {
+      "name": "empty_string",
+      "id": "edge",
+      "fields": [
+        ""
+      ],
+      "canonical_hex": "",
+      "expected": 7183457195969485844
+    },
+    {
+      "name": "none",
+      "id": "edge",
+      "fields": [
+        null
+      ],
+      "canonical_hex": "",
+      "expected": 7183457195969485844
+    },
+    {
+      "name": "two_empty",
+      "id": "edge",
+      "fields": [
+        "",
+        ""
+      ],
+      "canonical_hex": "1f",
+      "expected": 9216187533725832630
+    },
+    {
+      "name": "two_none",
+      "id": "edge",
+      "fields": [
+        null,
+        null
+      ],
+      "canonical_hex": "1f",
+      "expected": 9216187533725832630
+    },
+    {
+      "name": "zero",
+      "id": "edge",
+      "fields": [
+        0
+      ],
+      "canonical_hex": "30",
+      "expected": 6912158355717386040
+    },
+    {
+      "name": "negative_int",
+      "id": "edge",
+      "fields": [
+        -1
+      ],
+      "canonical_hex": "2d31",
+      "expected": 1994368463219536380
+    },
+    {
+      "name": "max_int64",
+      "id": "edge",
+      "fields": [
+        9223372036854775807
+      ],
+      "canonical_hex": "39323233333732303336383534373735383037",
+      "expected": 3695797439498155711
+    },
+    {
+      "name": "int_as_text",
+      "id": "edge",
+      "fields": [
+        "1500502",
+        "2"
+      ],
+      "canonical_hex": "313530303530321f32",
+      "expected": 4566135229701037697
+    },
+    {
+      "name": "unicode_bmp",
+      "id": "edge",
+      "fields": [
+        "café ☕",
+        "日本語"
+      ],
+      "canonical_hex": "636166c3a920e298951fe697a5e69cace8aa9e",
+      "expected": 435866022696328944
+    },
+    {
+      "name": "unicode_astral",
+      "id": "edge",
+      "fields": [
+        "🐉"
+      ],
+      "canonical_hex": "f09f9089",
+      "expected": 6218228559351137460
+    },
+    {
+      "name": "unicode_nfc",
+      "id": "edge",
+      "fields": [
+        "é"
+      ],
+      "canonical_hex": "c3a9",
+      "expected": 5375421630974772051
+    },
+    {
+      "name": "unicode_nfd",
+      "id": "edge",
+      "fields": [
+        "é"
+      ],
+      "canonical_hex": "65cc81",
+      "expected": 4544825244877739698
+    },
+    {
+      "name": "family_dragon_slayer",
+      "id": "proc_family.family_id",
+      "fields": [
+        "dragon slayer"
+      ],
+      "canonical_hex": "647261676f6e20736c61796572",
+      "expected": 2796738104691632867
+    },
+    {
+      "name": "family_mastery_over",
+      "id": "proc_family.family_id",
+      "fields": [
+        "mastery over"
+      ],
+      "canonical_hex": "6d617374657279206f766572",
+      "expected": 8410310020334769118
+    },
+    {
+      "name": "family_patriot_sword",
+      "id": "proc_family.family_id",
+      "fields": [
+        "patriot sword: infinity"
+      ],
+      "canonical_hex": "70617472696f742073776f72643a20696e66696e697479",
+      "expected": 145760410777537808
+    },
+    {
+      "name": "proc_water_dragon_slayer_xl",
+      "id": "proc.proc_id",
+      "fields": [
+        "water dragon slayer xl",
+        "b7392cdabaefee89a0db6b90975bc5608ec6a7c55e67aed0f91c8ad73e876390"
+      ],
+      "canonical_hex": "776174657220647261676f6e20736c6179657220786c1f62373339326364616261656665653839613064623662393039373562633536303865633661376335356536376165643066393163386164373365383736333930",
+      "expected": 4068123614585592249
+    },
+    {
+      "name": "proc_mastery_over_dark_xl",
+      "id": "proc.proc_id",
+      "fields": [
+        "mastery over dark xl",
+        "d9d540b5ec1a591000d4f03c71c65da7e8d24dfe4f0ce6a5bb6b4199e49b18f9"
+      ],
+      "canonical_hex": "6d617374657279206f766572206461726b20786c1f64396435343062356563316135393130303064346630336337316336356461376538643234646665346630636536613562623662343139396534396231386639",
+      "expected": 8610611238800608044
+    },
+    {
+      "name": "proc_patriot_sword",
+      "id": "proc.proc_id",
+      "fields": [
+        "patriot sword: infinity",
+        "8a8750fe71442564697ebe34bddff70d82d709856596f74ed8c28cfd403e610a"
+      ],
+      "canonical_hex": "70617472696f742073776f72643a20696e66696e6974791f38613837353066653731343432353634363937656265333462646466663730643832643730393835363539366637346564386332386366643430336536313061",
+      "expected": 159376223455163321
+    },
+    {
+      "name": "effect_no_target_none",
+      "id": "skill_effect.effect_id",
+      "fields": [
+        null,
+        "increases physical and magic ability power by 4xl+."
+      ],
+      "canonical_hex": "1f696e6372656173657320706879736963616c20616e64206d61676963206162696c69747920706f7765722062792034786c2b2e",
+      "expected": 4045730969155333848
+    },
+    {
+      "name": "effect_no_target_empty",
+      "id": "skill_effect.effect_id",
+      "fields": [
+        "",
+        "increases physical and magic ability power by 4xl+."
+      ],
+      "canonical_hex": "1f696e6372656173657320706879736963616c20616e64206d61676963206162696c69747920706f7765722062792034786c2b2e",
+      "expected": 4045730969155333848
+    },
+    {
+      "name": "effect_yourself",
+      "id": "skill_effect.effect_id",
+      "fields": [
+        "yourself",
+        "recovers 10 cost."
+      ],
+      "canonical_hex": "796f757273656c661f7265636f7665727320313020636f73742e",
+      "expected": 904559173316423849
+    },
+    {
+      "name": "effect_swapped",
+      "id": "skill_effect.effect_id",
+      "fields": [
+        "recovers 10 cost.",
+        "yourself"
+      ],
+      "canonical_hex": "7265636f7665727320313020636f73742e1f796f757273656c66",
+      "expected": 6114351991220424827
+    },
+    {
+      "name": "effect_1_enemy",
+      "id": "skill_effect.effect_id",
+      "fields": [
+        "1 enemy",
+        "ability power 110. deals physical damage 1 time that penetrates damage reduction and damage reflection effects with a success value of 100."
+      ],
+      "canonical_hex": "3120656e656d791f6162696c69747920706f776572203131302e206465616c7320706879736963616c2064616d61676520312074696d6520746861742070656e657472617465732064616d61676520726564756374696f6e20616e642064616d616765207265666c656374696f6e20656666656374732077697468206120737563636573732076616c7565206f66203130302e",
+      "expected": 2140640486389862323
+    },
+    {
+      "name": "passive_eclipses_blessing",
+      "id": "passive_skill.passive_id",
+      "fields": [
+        "eclipse's blessing",
+        "72488427540c004ee9ced5498b0f1b0a061861baec5428fef101603726d0e920"
+      ],
+      "canonical_hex": "65636c69707365277320626c657373696e671f37323438383432373534306330303465653963656435343938623066316230613036313836316261656335343238666566313031363033373236643065393230",
+      "expected": 7736285657851726282
+    },
+    {
+      "name": "passive_eins_schwert",
+      "id": "passive_skill.passive_id",
+      "fields": [
+        "eins - schwert",
+        "d5d0e2a77e434e1a621a950d3bb9d97eaa9344a626acf5ce74f5490d3aa23655"
+      ],
+      "canonical_hex": "65696e73202d20736368776572741f64356430653261373765343334653161363231613935306433626239643937656161393334346136323661636635636537346635343930643361613233363535",
+      "expected": 3564269090736654164
+    },
+    {
+      "name": "skill_1796604_1",
+      "id": "monster_skill.skill_id",
+      "fields": [
+        "1796604",
+        1
+      ],
+      "canonical_hex": "313739363630341f31",
+      "expected": 4291213633320073728
+    },
+    {
+      "name": "skill_1500502_1",
+      "id": "monster_skill.skill_id",
+      "fields": [
+        "1500502",
+        1
+      ],
+      "canonical_hex": "313530303530321f31",
+      "expected": 2018827732041611503
+    },
+    {
+      "name": "skill_1500502_2",
+      "id": "monster_skill.skill_id",
+      "fields": [
+        "1500502",
+        2
+      ],
+      "canonical_hex": "313530303530321f32",
+      "expected": 4566135229701037697
+    }
+  ]
+}

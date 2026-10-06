@@ -1,0 +1,120 @@
+{
+  "spec": "ids.effect_hash -> lines 'e' US target US description, 'c' US condition, 'r' US rate, 's' US scaling, joined (sha256 hex)",
+  "vectors": [
+    {
+      "name": "proc_water_dragon_slayer_xl",
+      "effects": [
+        [
+          null,
+          "increases physical and magic ability power by 4xl+."
+        ],
+        [
+          null,
+          "increases damage when using a physical or magic attack ability by s+."
+        ],
+        [
+          "yourself",
+          "recovers 10 cost."
+        ],
+        [
+          null,
+          "increases physical and magic attack ability success value by m."
+        ]
+      ],
+      "conditions": [
+        "when a physical or magic attack ability is used."
+      ],
+      "rate": "l",
+      "scaling": [
+        "ability power scales with the number of water elemental weapons equipped up to a max of 5xl+ (gear pieces needed for maximum effect: 5).",
+        "activation rate scales with the number of water elemental weapons equipped up to a max of xl (gear pieces needed for maximum effect: 5)."
+      ],
+      "expected": "b7392cdabaefee89a0db6b90975bc5608ec6a7c55e67aed0f91c8ad73e876390"
+    },
+    {
+      "name": "proc_mastery_over_dark_xl",
+      "effects": [
+        [
+          null,
+          "reduces physical and magic damage taken by l+."
+        ],
+        [
+          null,
+          "increases status ailment resistance by xxl."
+        ],
+        [
+          null,
+          "reduces physical ability power by 4xl+."
+        ],
+        [
+          null,
+          "reduces magic ability power by 4xl+."
+        ]
+      ],
+      "conditions": [
+        "when physical or magic damage is taken."
+      ],
+      "rate": "m+",
+      "scaling": [
+        "damage reduction scales with the number of dark elemental helm/hat/armor/clothing type gear pieces equipped up to a max of xxl (gear pieces needed for maximum effect: 3).",
+        "activation rate scales with the number of dark elemental helm/hat/armor/clothing type gear pieces equipped up to a max of xl (gear pieces needed for maximum effect: 3)."
+      ],
+      "expected": "d9d540b5ec1a591000d4f03c71c65da7e8d24dfe4f0ce6a5bb6b4199e49b18f9"
+    },
+    {
+      "name": "proc_patriot_sword",
+      "effects": [
+        [
+          null,
+          "atk & matk of swords/axes +25%"
+        ]
+      ],
+      "conditions": [],
+      "rate": null,
+      "scaling": [],
+      "expected": "8a8750fe71442564697ebe34bddff70d82d709856596f74ed8c28cfd403e610a"
+    },
+    {
+      "name": "passive_eclipses_blessing",
+      "effects": [
+        [
+          null,
+          "status ailment resistance boosted by 45 when equipped in the main slot."
+        ]
+      ],
+      "conditions": [],
+      "rate": null,
+      "scaling": [],
+      "expected": "72488427540c004ee9ced5498b0f1b0a061861baec5428fef101603726d0e920"
+    },
+    {
+      "name": "passive_eins_schwert",
+      "effects": [
+        [
+          null,
+          "if your class is a soldier class, reduces fire unison attack and great spirit unison attack damage by 90% when equipped in the main slot."
+        ]
+      ],
+      "conditions": [],
+      "rate": null,
+      "scaling": [],
+      "expected": "d5d0e2a77e434e1a621a950d3bb9d97eaa9344a626acf5ce74f5490d3aa23655"
+    },
+    {
+      "name": "empty",
+      "effects": [],
+      "conditions": [],
+      "rate": null,
+      "scaling": [],
+      "expected": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "rate_only",
+      "effects": [],
+      "conditions": [],
+      "rate": "l",
+      "scaling": [],
+      "expected": "b3fda48439535fa6a97c2bf740a5d62da45c835eedbf9a5d2cbe82e63de0fce1"
+    }
+  ]
+}
