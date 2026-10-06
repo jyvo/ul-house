@@ -1,26 +1,8 @@
 import pytest
 from bs4 import BeautifulSoup
 
-import sample_catalog
-from fetch_fixtures import UIDS, cached_path, ensure_cached, missing
-
-CATALOG = {
-    item.uid: item
-    for item in (getattr(sample_catalog, name) for name in dir(sample_catalog) if name.isupper())
-    if hasattr(item, "uid")
-}
-
-# page with no catalog entry (for paths that do not cover)
-SSR_REFORGE_UID = "4434015"
-
-
-def pytest_addoption(parser):
-    parser.addoption(
-        "--no-fetch",
-        action="store_true",
-        default=False,
-        help="do not download missing fixture pages; skip the tests that need them",
-    )
+from fetch_fixtures import UIDS, ensure_cached, missing
+from catalog_fixtures import CATALOG, SSR_REFORGE_UID, load_soup, catalog_ids, catalog_params
 
 
 def pytest_configure(config):
@@ -29,10 +11,6 @@ def pytest_configure(config):
         return
     if missing():
         ensure_cached()
-
-
-def load_soup(uid: str) -> BeautifulSoup:
-    return BeautifulSoup(cached_path(uid).read_text(), "lxml")
 
 
 @pytest.fixture(scope="session")
@@ -47,13 +25,17 @@ def soups() -> dict[str, BeautifulSoup]:
     return {uid: load_soup(uid) for uid in UIDS}
 
 
-def catalog_ids() -> list[str]:
-    return sorted(CATALOG)
+@pytest.fixture(scope="session")
+def mini_seed_path(tmp_path_factory):
+    mini_seed = pytest.importorskip("mini_seed")
+    return mini_seed.build_mini_seed(tmp_path_factory.mktemp("mini") / "seed.sqlite")
 
 
-def catalog_params():
-    """(uid, expected model) for every catalogued page"""
-    return [
-        pytest.param(uid, CATALOG[uid], id=f"{CATALOG[uid].name}({uid})")
-        for uid in catalog_ids()
-    ]
+@pytest.fixture
+def offline_dbt(monkeypatch):
+    """dbt children use this environment"""
+    for name in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY"):
+        monkeypatch.setenv(name, "http://127.0.0.1:9")
+    monkeypatch.setenv("NO_PROXY", "")
+    monkeypatch.setenv("DBT_SEND_ANONYMOUS_USAGE_STATS", "false")
+    monkeypatch.setenv("DO_NOT_TRACK", "1")

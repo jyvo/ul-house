@@ -10,6 +10,13 @@ from ul_house.models.gear_evolution import Reforge, Awakening, Enlightening, Gea
 from ul_house.models.gear_mechanism import Proc, ProcActivation, ProcScaling, SkillEffect, WeaponAbility, MonsterSkill, PassiveSkill, HiddenPotential, PotentialLevel
 
 
+PARSER_VERSION: int = 1
+
+
+class UnparseablePage(ValueError):
+    """parse() produced no model -> no basic-data table, or no gear type"""
+
+
 def _to_int(value: str | int | None, default: int = 0) -> int:
     if value is None:
         return default
@@ -296,3 +303,10 @@ def parse(soup: BeautifulSoup, item_id: str) -> Weapon | DefensiveGear | Monster
             skill=_parse_proc(soup),
         )
     return None
+
+
+def parse_html(html: str | bytes, item_id: str) -> Weapon | DefensiveGear | Monster:
+    model = parse(BeautifulSoup(html, "lxml"), item_id)
+    if model is None:
+        raise UnparseablePage(f"{item_id}: no basic data table or no gear type")
+    return model
