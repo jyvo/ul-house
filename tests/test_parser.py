@@ -4,9 +4,10 @@ import dataclasses
 import pytest
 
 from ul_house.models.equipment import DefensiveGear, Monster, Weapon
-from ul_house.parse import parse
+from ul_house.parse import UnparseablePage, parse, parse_html
 
-from conftest import SSR_REFORGE_UID, catalog_params
+from catalog_fixtures import SSR_REFORGE_UID, catalog_params
+from fetch_fixtures import cached_path
 
 
 @pytest.mark.parametrize("uid, expected", catalog_params())
@@ -153,12 +154,14 @@ class TestStats:
         for stat in parse(soups["1890424"], "1890424").stats:
             assert all(isinstance(value, int) for _, value in stat.values)
 
-    def test_slotted_property(self, soups):
-        """monsters may have selectable stat slots, gear does not"""
+    def test_assignable_property(self, soups):
         monster = parse(soups["1796604"], "1796604")
         weapon = parse(soups["1015655"], "1015655")
-        assert not any(stat.slotted for stat in monster.stats)
-        assert all(stat.slotted for stat in weapon.stats)
+        fixed = parse(soups["4425111"], "4425111")
+        assert monster.stats and all(stat.assignable for stat in monster.stats)
+        assert not any(stat.assignable for stat in weapon.stats)
+        assert {stat.label for stat in fixed.stats} >= {"def", "mdef"}
+        assert not any(stat.assignable for stat in fixed.stats)
 
 
 def test_unknown_gear_type_returns_none():
@@ -166,3 +169,15 @@ def test_unknown_gear_type_returns_none():
     from bs4 import BeautifulSoup
 
     assert parse(BeautifulSoup("<html><body></body></html>", "lxml"), "0") is None
+
+
+@pytest.mark.parametrize("uid, expected", catalog_params())
+def test_parse_html_matches_parse(uid, expected, soups):
+    assert parse_html(cached_path(uid).read_bytes(), uid) == expected
+    assert parse_html(cached_path(uid).read_text(), uid) == expected
+
+
+def test_parse_html_raises_unparseable():
+    with pytest.raises(UnparseablePage, match="^0: "):
+        parse_html("<html><body></body></html>", "0")
+    assert issubclass(UnparseablePage, ValueError)

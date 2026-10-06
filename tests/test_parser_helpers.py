@@ -1,6 +1,6 @@
 import pytest
 
-from ul_house.models.equipment import EquipmentRef
+from ul_house.models.equipment import EquipmentRef, Stats
 from ul_house.parse import _equip_ref, _to_int, _lines, _parse_effects, _sections
 
 
@@ -109,3 +109,16 @@ class TestEquipRef:
     def test_absent_slots_are_none(self, name, uid):
         """site renders an empty evolution slot as '-'"""
         assert _equip_ref(name, uid) is None
+
+
+class TestAssignable:
+    @pytest.mark.parametrize("label", ["stats1", "stats2", "STATS1"])
+    def test_stat_slots_are_assignable(self, label):
+        assert Stats(label, ()).assignable
+
+    @pytest.mark.parametrize("label", ["atk", "matk", "def", "mdef"])
+    def test_published_stats_are_not(self, label):
+        assert not Stats(label, ()).assignable
+
+    def test_slotted_is_gone(self):
+        assert not hasattr(Stats("atk", ()), "slotted")
