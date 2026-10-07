@@ -1,4 +1,4 @@
--- local db
+-- dataset_schema_version: 1
 
 -- @section game
 CREATE TABLE IF NOT EXISTS element (

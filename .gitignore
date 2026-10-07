@@ -3,3 +3,5 @@ __pycache__
 
 # cached pages for testing (not distributed, files pulled within testing script)
 tests/data/
+
+/build/
