@@ -1,0 +1,17 @@
+ul_house:
+  target: build
+  outputs:
+    build:
+      type: duckdb
+      path: "{{ env_var('UL_HOUSE_DUCKDB', 'analytics/target/mart.duckdb') }}"
+      schema: main
+      threads: 4
+      settings:
+        autoinstall_known_extensions: false
+        autoload_known_extensions: false
+      attach:
+        - path: "{{ env_var('UL_HOUSE_HISTORY', 'analytics/target/history/current.duckdb') }}"
+          alias: history
+        - path: "{{ env_var('UL_HOUSE_HISTORY_PREV', 'analytics/target/history/previous.duckdb') }}"
+          alias: prev
+          read_only: true

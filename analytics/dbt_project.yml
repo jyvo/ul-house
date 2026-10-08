@@ -1,0 +1,63 @@
+name: ul_house
+version: "1.0.0"
+config-version: 2
+profile: ul_house
+require-dbt-version: [">=1.12.0", "<1.13.0"]
+model-paths: ["models"]
+seed-paths: ["reference"]
+snapshot-paths: ["snapshots"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target"]
+flags:
+  send_anonymous_usage_stats: false
+  use_colors: false
+  partial_parse: true
+
+vars:
+  new_item_days: 7
+  alias_window_days: 7
+  alias_min_score: 0.9
+  proc_size_tokens: ["s", "m", "l", "xl", "xxl", "xxxl"]
+  transform_version: 1 
+
+models:
+  ul_house:
+    +on_schema_change: fail
+    staging:      {+materialized: view,  +schema: staging}
+    intermediate: {+materialized: table, +schema: intermediate}
+    marts:        {+materialized: table, +contract: {enforced: true}}
+    reports:      {+materialized: view,  +schema: reports}
+    exports:      {+materialized: table, +schema: build, +contract: {enforced: true}}
+    history:
+      +database: history
+      +schema: main
+      +materialized: incremental
+      +incremental_strategy: append
+      +full_refresh: false
+      +contract: {enforced: true}
+      entity_current: {+materialized: table, +full_refresh: null}
+
+seeds:
+  ul_house:
+    +schema: reference
+    confirmed_aliases: {+column_types: {old_uid: varchar, new_uid: varchar, note: varchar}}
+    rejected_aliases:  {+column_types: {old_uid: varchar, new_uid: varchar, note: varchar}}
+    vocabulary:        {+column_types: {domain: varchar, value: varchar}}
+
+snapshots:
+  ul_house:
+    +database: history
+    +schema: main
+
+data_tests:
+  ul_house:
+    +store_failures: true
+    +store_failures_as: table
+    +schema: audit
+    +severity: error             # gate__* and info__* tests warning
+    policy:
+      +severity: warn
+    info:
+      +severity: warn            # info__* recorded
