@@ -1,0 +1,13 @@
+// sync api (cloudflare python worker)
+{
+  "name": "ul-house-api",
+  "main": "src/entry.py",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["python_workers"],
+  "workers_dev": true,
+  "r2_buckets": [
+    {"binding": "BUCKET", "bucket_name": "ul-house"}
+  ],
+  "vars": {"API_COMMIT": "dev"},
+  "observability": {"enabled": false}
+}
