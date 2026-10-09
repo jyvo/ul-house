@@ -1,0 +1,247 @@
+version: 2
+
+models:
+  - name: ledger_dataset_changes
+    constraints:
+      - type: primary_key
+        columns: [revision, entity_type, entity_key]
+    columns:
+      - name: revision
+        data_type: bigint
+        constraints: [{type: not_null}]
+      - name: entity_type
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: entity_key
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: operation
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: row_hash
+        data_type: varchar
+      - name: changed_at
+        data_type: varchar
+        constraints: [{type: not_null}]
+  - name: ledger_row_version
+    constraints:
+      - type: primary_key
+        columns: [entity_type, entity_key, revision]
+    columns:
+      - name: entity_type
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: entity_key
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: row_hash
+        data_type: varchar
+      - name: revision
+        data_type: bigint
+        constraints: [{type: not_null}]
+  - name: ledger_uid_retired
+    columns:
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+      - name: since_revision
+        data_type: bigint
+        constraints: [{type: not_null}]
+      - name: reason
+        data_type: varchar
+        constraints: [{type: not_null}]
+  - name: ledger_uid_alias
+    columns:
+      - name: old_uid
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+      - name: new_uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: since_revision
+        data_type: bigint
+        constraints: [{type: not_null}]
+      - name: confirmed_commit
+        data_type: varchar
+        constraints: [{type: not_null}]
+  - name: ledger_alias_candidate
+    constraints:
+      - type: primary_key
+        columns: [old_uid, new_uid]
+    columns:
+      - name: old_uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: new_uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: first_seen_revision
+        data_type: bigint
+        constraints: [{type: not_null}]
+      - name: score
+        data_type: double
+        constraints: [{type: not_null}]
+      - name: evidence
+        data_type: varchar
+        constraints: [{type: not_null}]
+  - name: ledger_alias_rejected
+    constraints:
+      - type: primary_key
+        columns: [old_uid, new_uid]
+    columns:
+      - name: old_uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: new_uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: revision
+        data_type: bigint
+        constraints: [{type: not_null}]
+      - name: rejected_commit
+        data_type: varchar
+        constraints: [{type: not_null}]
+  - name: ledger_equipment_seen
+    columns:
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+      - name: first_seen
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: first_revision
+        data_type: bigint
+        constraints: [{type: not_null}]
+  - name: population
+    constraints:
+      - type: primary_key
+        columns: [run_id, scope]
+    columns:
+      - name: run_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: revision
+        data_type: bigint
+        constraints: [{type: not_null}]
+      - name: scope
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: value
+        data_type: bigint
+        constraints: [{type: not_null}]
+      - name: observed_at
+        data_type: varchar
+        constraints: [{type: not_null}]
+  - name: obs_pipeline_run
+    columns:
+      - name: run_id
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+      - name: crawl_run_id
+        data_type: bigint
+        constraints: [{type: not_null}]
+      - name: crawl_status
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: crawl_seconds
+        data_type: double
+      - name: pages_discovered
+        data_type: bigint
+      - name: pages_fetched
+        data_type: bigint
+      - name: pages_changed
+        data_type: bigint
+      - name: pages_failed
+        data_type: bigint
+      - name: pages_not_modified
+        data_type: bigint
+      - name: rate_304
+        data_type: double
+      - name: icons_fetched
+        data_type: bigint
+      - name: icons_changed
+        data_type: bigint
+      - name: icons_failed
+        data_type: bigint
+      - name: parse_failures
+        data_type: bigint
+        constraints: [{type: not_null}]
+      - name: parser_version
+        data_type: bigint
+        constraints: [{type: not_null}]
+      - name: equipment_records
+        data_type: bigint
+        constraints: [{type: not_null}]
+      - name: observed_at
+        data_type: varchar
+        constraints: [{type: not_null}]
+  - name: obs_data_quality
+    constraints:
+      - type: primary_key
+        columns: [run_id, metric, scope]
+    columns:
+      - name: run_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: metric
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: scope
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: value
+        data_type: double
+      - name: prev_value
+        data_type: double
+      - name: delta_pct
+        data_type: double
+      - name: observed_at
+        data_type: varchar
+        constraints: [{type: not_null}]
+  - name: obs_unlisted_release
+    constraints:
+      - type: primary_key
+        columns: [run_id, item_id]
+    columns:
+      - name: run_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: item_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: name
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: runs
+        data_type: bigint
+        constraints: [{type: not_null}]
+      - name: observed_at
+        data_type: varchar
+        constraints: [{type: not_null}]
+  - name: entity_current
+    constraints:
+      - type: primary_key
+        columns: [entity_type, entity_key]
+    columns:
+      - name: entity_type
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: entity_key
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: row_hash
+        data_type: varchar
+      - name: content_hash
+        data_type: varchar
+      - name: last_revision
+        data_type: bigint
+        constraints: [{type: not_null}]
+      - name: last_operation
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: state
+        data_type: varchar
+      - name: retired_revision
+        data_type: bigint
+      - name: content_changed_at
+        data_type: varchar

@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: shipped_parse_failures
+    columns:
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+      - name: source_hash
+        data_type: varchar
+      - name: parser_version
+        data_type: bigint
+      - name: error
+        data_type: varchar
+
+unit_tests:
+  - name: shipped_parse_failures_prev_shipped_only
+    description: "previously shipped uid with a parse error appears (a new uid or a DELETEd key does not)"
+    model: shipped_parse_failures
+    given:
+      - input: ref('stg_parse_error')
+        rows:
+          - {source_id: shipped, source_hash: s1, parser_version: 3, error: boom}
+          - {source_id: fresh, source_hash: s2, parser_version: 3, error: boom}
+          - {source_id: deleted, source_hash: s3, parser_version: 3, error: boom}
+      - input: source('prev', 'entity_current')
+        rows:
+          - {entity_type: equipment, entity_key: shipped, last_operation: INSERT}
+          - {entity_type: equipment, entity_key: deleted, last_operation: DELETE}
+          - {entity_type: proc, entity_key: fresh, last_operation: INSERT}
+    expect:
+      rows:
+        - {uid: shipped, source_hash: s1, parser_version: 3, error: boom}

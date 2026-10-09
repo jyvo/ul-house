@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: int_run
+    columns:
+      - name: revision
+        data_tests: [not_null]
+      - name: run_id
+        data_tests: [not_null]
+      - name: started_at
+        data_tests: [not_null]
+  - name: int_skill_effect
+    columns:
+      - name: effect_id
+        data_tests: [unique, not_null]
+  - name: int_monster_skill
+    columns:
+      - name: skill_id
+        data_tests: [unique, not_null]
+  - name: int_changes
+    data_tests:
+      - unique_combination: {arguments: {columns: [entity_type, entity_key]}} 
+    columns:
+      - name: operation
+        data_tests:
+          - accepted_values: {arguments: {values: ['INSERT', 'UPDATE', 'DELETE', 'RETIRE', 'ALIAS']}}
+      - name: entity_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['equipment', 'proc', 'proc_family', 'skill_effect', 'passive_skill',
+                         'weapon_ability', 'item', 'icon', 'element', 'uid_retired', 'uid_alias']
+  - name: int_aggregate_hash_game
+    data_tests:
+      - unique_combination: {arguments: {columns: [entity_type, entity_key]}}

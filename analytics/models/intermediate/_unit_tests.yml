@@ -1,0 +1,296 @@
+version: 2
+
+unit_tests:
+  - name: int_changes_first_run_all_insert
+    model: int_changes
+    overrides:
+      vars:
+        aggregates: [{entity_type: equipment, deletable: false}, {entity_type: proc, deletable: true},
+                     {entity_type: uid_retired, deletable: false}]
+    given:
+      - input: ref('int_run')
+        rows: [{revision: 1, started_at: '2026-10-04T23:17:00Z'}]
+      - input: ref('int_aggregate_hash_game')
+        rows:
+          - {entity_type: equipment, entity_key: '1', row_hash: a, content_hash: a, state: live}
+          - {entity_type: proc, entity_key: '7', row_hash: p, content_hash: p}
+      - input: ref('int_aggregate_hash_ledger')
+        rows: []
+      - input: source('prev', 'entity_current')
+        rows: []
+      - input: ref('int_alias_new')
+        rows: []
+      - input: ref('stg_parse_error')
+        rows: []
+    expect:
+      rows:
+        - {revision: 1, entity_type: equipment, entity_key: '1', operation: INSERT, row_hash: a, changed_at: '2026-10-04T23:17:00Z'}
+        - {revision: 1, entity_type: proc, entity_key: '7', operation: INSERT, row_hash: p, changed_at: '2026-10-04T23:17:00Z'}
+
+  - name: int_changes_operations
+    description: >
+      no-op · UPDATE · RETIRE (state only) · retire + content change = UPDATE · revive = UPDATE ·
+      shared vanished = DELETE · deleted shared reappears = INSERT · equipment vanished = no row ·
+      ALIAS · ledger INSERT
+    model: int_changes
+    overrides:
+      vars:
+        aggregates: [{entity_type: equipment, deletable: false}, {entity_type: proc, deletable: true},
+                     {entity_type: uid_retired, deletable: false}]
+    given:
+      - input: ref('int_run')
+        rows: [{revision: 5, started_at: '2026-10-08T00:00:00Z'}]
+      - input: ref('int_aggregate_hash_game')
+        rows:
+          - {entity_type: equipment, entity_key: noop, row_hash: h1, content_hash: c1, state: live}
+          - {entity_type: equipment, entity_key: upd, row_hash: h2b, content_hash: c2b, state: live}
+          - {entity_type: equipment, entity_key: ret, row_hash: h3b, content_hash: c3, state: retired, retired_revision: 5}
+          - {entity_type: equipment, entity_key: retchg, row_hash: h4b, content_hash: c4b, state: retired, retired_revision: 5}
+          - {entity_type: equipment, entity_key: revive, row_hash: h5b, content_hash: c5, state: live}
+          - {entity_type: equipment, entity_key: old, row_hash: h6, content_hash: c6, state: retired, retired_revision: 3}
+          - {entity_type: proc, entity_key: back, row_hash: pb, content_hash: pb}
+      - input: ref('int_aggregate_hash_ledger')
+        rows:
+          - {entity_type: uid_retired, entity_key: ret, row_hash: l1, content_hash: l1}
+      - input: source('prev', 'entity_current')
+        rows:
+          - {entity_type: equipment, entity_key: noop, row_hash: h1, content_hash: c1, state: live, last_operation: INSERT, last_revision: 1}
+          - {entity_type: equipment, entity_key: upd, row_hash: h2, content_hash: c2, state: live, last_operation: INSERT, last_revision: 1}
+          - {entity_type: equipment, entity_key: ret, row_hash: h3, content_hash: c3, state: live, last_operation: INSERT, last_revision: 1}
+          - {entity_type: equipment, entity_key: retchg, row_hash: h4, content_hash: c4, state: live, last_operation: INSERT, last_revision: 1}
+          - {entity_type: equipment, entity_key: revive, row_hash: h5, content_hash: c5, state: retired, retired_revision: 2, last_operation: RETIRE, last_revision: 2}
+          - {entity_type: equipment, entity_key: old, row_hash: h6, content_hash: c6, state: retired, retired_revision: 3, last_operation: RETIRE, last_revision: 3}
+          - {entity_type: equipment, entity_key: gone, row_hash: h7, content_hash: c7, state: live, last_operation: INSERT, last_revision: 1}
+          - {entity_type: proc, entity_key: vanished, row_hash: pv, content_hash: pv, last_operation: INSERT, last_revision: 1}
+          - {entity_type: proc, entity_key: back, row_hash: null, content_hash: null, last_operation: DELETE, last_revision: 2}
+      - input: ref('int_alias_new')
+        rows:
+          - {old_uid: old, new_uid: upd, since_revision: 5, confirmed_commit: abc}
+      - input: ref('stg_parse_error')
+        rows: []
+    expect:
+      rows:
+        - {entity_type: equipment, entity_key: upd, operation: UPDATE}
+        - {entity_type: equipment, entity_key: ret, operation: RETIRE}
+        - {entity_type: equipment, entity_key: retchg, operation: UPDATE}
+        - {entity_type: equipment, entity_key: revive, operation: UPDATE}
+        - {entity_type: equipment, entity_key: old, operation: ALIAS}
+        - {entity_type: proc, entity_key: back, operation: INSERT}
+        - {entity_type: proc, entity_key: vanished, operation: DELETE}
+        - {entity_type: uid_retired, entity_key: ret, operation: INSERT}
+
+  - name: int_equipment_status_cases
+    description: live · gone first time · still retired keeps revision · out_of_scope · failed stays live · revive
+    model: int_equipment_status
+    given:
+      - input: ref('int_run')
+        rows: [{revision: 4, last_complete_run: 9}]
+      - input: ref('stg_equipment')
+        rows:
+          - {source_uid: live, model_class: weapon}
+          - {source_uid: gone1, model_class: weapon}
+          - {source_uid: gone2, model_class: weapon}
+          - {source_uid: oos, model_class: weapon}
+          - {source_uid: failed, model_class: weapon}
+          - {source_uid: revive, model_class: weapon}
+      - input: ref('int_scope_member')
+        rows:
+          - {uid: live, frontier_state: done, decided_run_id: 9}
+          - {uid: gone1, frontier_state: gone, decided_run_id: 9}
+          - {uid: gone2, frontier_state: gone, decided_run_id: 9}
+          - {uid: oos, frontier_state: done, decided_run_id: 8}
+          - {uid: failed, frontier_state: failed, decided_run_id: 9}
+          - {uid: revive, frontier_state: done, decided_run_id: 9}
+      - input: source('prev', 'entity_current')
+        rows:
+          - {entity_type: equipment, entity_key: live, state: live, last_operation: INSERT}
+          - {entity_type: equipment, entity_key: gone1, state: live, last_operation: INSERT}
+          - {entity_type: equipment, entity_key: gone2, state: retired, retired_revision: 2, last_operation: RETIRE}
+          - {entity_type: equipment, entity_key: revive, state: retired, retired_revision: 2, last_operation: RETIRE}
+    expect:
+      rows:
+        - {uid: live, state: live, retire_reason: null, retired_revision: null, newly_retired: false, revived: false}
+        - {uid: gone1, state: retired, retire_reason: gone, retired_revision: 4, newly_retired: true, revived: false}
+        - {uid: gone2, state: retired, retire_reason: gone, retired_revision: 2, newly_retired: false, revived: false}
+        - {uid: oos, state: retired, retire_reason: out_of_scope, retired_revision: 4, newly_retired: true, revived: false}
+        - {uid: failed, state: live, retire_reason: null, retired_revision: null, newly_retired: false, revived: false}
+        - {uid: revive, state: live, retire_reason: null, retired_revision: null, newly_retired: false, revived: true}
+
+  - name: int_retired_new_first_retirement_only
+    description: first retirement · re-retire after revive adds nothing (ledger PK uid, P24)
+    model: int_retired_new
+    given:
+      - input: ref('int_run')
+        rows: [{revision: 6}]
+      - input: ref('int_equipment_status')
+        rows:
+          - {uid: first, state: retired, retire_reason: gone}
+          - {uid: again, state: retired, retire_reason: out_of_scope}
+          - {uid: live, state: live}
+      - input: source('prev', 'uid_retired')
+        rows:
+          - {uid: again, since_revision: 2, reason: gone}
+    expect:
+      rows:
+        - {uid: first, since_revision: 6, reason: gone}
+
+  - name: int_alias_new_cases
+    description: confirmed recorded · already in ledger skipped · deferred when old changed · old live not recorded
+    model: int_alias_new
+    given:
+      - input: ref('int_run')
+        rows: [{revision: 4, code_commit: c0ffee}]
+      - input: ref('confirmed_aliases')
+        rows:
+          - {old_uid: ok, new_uid: n1}
+          - {old_uid: done, new_uid: n1}
+          - {old_uid: changed, new_uid: n1}
+          - {old_uid: alive, new_uid: n1}
+      - input: source('prev', 'entity_current')
+        rows:
+          - {entity_type: equipment, entity_key: ok, state: retired, row_hash: h1, last_operation: RETIRE}
+          - {entity_type: equipment, entity_key: done, state: retired, row_hash: h2, last_operation: RETIRE}
+          - {entity_type: equipment, entity_key: changed, state: retired, row_hash: h3, last_operation: RETIRE}
+          - {entity_type: equipment, entity_key: alive, state: live, row_hash: h4, last_operation: INSERT}
+      - input: ref('int_aggregate_hash_game')
+        rows:
+          - {entity_type: equipment, entity_key: ok, row_hash: h1}
+          - {entity_type: equipment, entity_key: done, row_hash: h2}
+          - {entity_type: equipment, entity_key: changed, row_hash: h3b}
+          - {entity_type: equipment, entity_key: alive, row_hash: h4}
+      - input: ref('int_ship_equipment')
+        rows:
+          - {uid: n1, state: live}
+      - input: source('prev', 'uid_alias')
+        rows:
+          - {old_uid: done, new_uid: n1, since_revision: 3, confirmed_commit: x}
+    expect:
+      rows:
+        - {old_uid: ok, new_uid: n1, since_revision: 4, confirmed_commit: c0ffee}
+
+  - name: int_proc_scaling_regexes
+    model: int_proc_scaling
+    given:
+      - input: ref('stg_element')
+        rows: [{element_id: water}, {element_id: dark}, {element_id: none}]
+      - input: ref('stg_proc')
+        rows:
+          - {source_uid: '1', name: water dragon slayer xl, effect_hash: e}
+      - input: ref('stg_proc_scaling')
+        rows:
+          - {source_uid: '1', ordinal: 1, description: 'ability power scales with the number of water elemental weapons equipped up to a max of 5xl+ (gear pieces needed for maximum effect: 5).'}
+          - {source_uid: '1', ordinal: 2, description: 'damage reduction scales with the number of dark elemental helm/hat/armor/clothing type gear pieces equipped up to a max of xxl (gear pieces needed for maximum effect: 3).'}
+    expect:
+      rows:
+        - {ordinal: 1, scale_kind: ability_power, element_id: water, gear_kind: weapons, cap: 5xl+, pieces_needed: 5}
+        - {ordinal: 2, scale_kind: damage_reduction, element_id: dark, gear_kind: gear, cap: xxl, pieces_needed: 3}
+
+  - name: int_proc_decomposition
+    description: the three sample procs and a suffix element (§5.4)
+    model: int_proc
+    given:
+      - input: ref('stg_element')
+        rows: [{element_id: water}, {element_id: dark}, {element_id: fire}, {element_id: none}]
+      - input: ref('stg_proc')
+        rows:
+          - {source_uid: '1', name: water dragon slayer xl, effect_hash: e1}
+          - {source_uid: '2', name: mastery over dark xl, effect_hash: e2}
+          - {source_uid: '3', name: 'patriot sword: infinity', effect_hash: e3}
+          - {source_uid: '4', name: obliterating water xl, effect_hash: e4}
+      - input: ref('int_proc_scaling')
+        rows:
+          - {source_uid: '1', ordinal: 1, element_id: water}
+          - {source_uid: '2', ordinal: 1, element_id: dark}
+    expect:
+      rows:
+        - {source_uid: '1', size: xl, name_element: water, element_position: prefix, family_name: dragon slayer, element_id: water}
+        - {source_uid: '2', size: xl, name_element: dark, element_position: suffix, family_name: mastery over, element_id: dark}
+        - {source_uid: '3', size: null, name_element: null, element_position: null, family_name: 'patriot sword: infinity', element_id: null}
+        - {source_uid: '4', size: xl, name_element: water, element_position: suffix, family_name: obliterating, element_id: null}
+
+  - name: int_evolution_edge_resolution
+    description: before / after / both · a conflicting after-only edge is dropped (before is authoritative)
+    model: int_evolution_edge
+    given:
+      - input: ref('int_evolution_claim')
+        rows:
+          - {kind: reforge, from_uid: a, to_uid: b, side: before, from_name: A, to_name: B}
+          - {kind: reforge, from_uid: a, to_uid: b, side: after, from_name: A, to_name: B}
+          - {kind: reforge, from_uid: x, to_uid: y, side: before, from_name: X, to_name: Y}
+          - {kind: awakening, from_uid: p, to_uid: q, side: after, from_name: P, to_name: Q}
+          - {kind: reforge, from_uid: a, to_uid: c, side: after, from_name: A, to_name: C}
+          - {kind: reforge, from_uid: z, to_uid: y, side: after, from_name: Z, to_name: Y}
+      - input: ref('stg_equipment')
+        rows: []
+    expect:
+      rows:
+        - {kind: reforge, from_uid: a, to_uid: b, evidence: both}
+        - {kind: reforge, from_uid: x, to_uid: y, evidence: before}
+        - {kind: awakening, from_uid: p, to_uid: q, evidence: after}
+
+  - name: int_evolution_chain_positions
+    description: chain positions count an unshipped root; rows for shipped uids only
+    model: int_evolution_chain
+    given:
+      - input: ref('int_evolution_edge')
+        rows:
+          - {kind: reforge, from_uid: r, to_uid: s1}
+          - {kind: reforge, from_uid: s1, to_uid: s2}
+      - input: ref('int_ship_equipment')
+        rows: [{uid: s1}, {uid: s2}]
+    expect:
+      rows:
+        - {kind: reforge, chain_id: r, uid: s1, position: 1}
+        - {kind: reforge, chain_id: r, uid: s2, position: 2}
+
+  - name: int_changes_shared_delete_deferred_on_parse_error
+    description: "P29 - a shipped uid failed to parse, so the unreferenced shared row is not DELETEd (and the uid gets no row)"
+    model: int_changes
+    overrides:
+      vars:
+        aggregates: [{entity_type: equipment, deletable: false}, {entity_type: proc, deletable: true}]
+    given:
+      - input: ref('int_run')
+        rows: [{revision: 7, started_at: '2026-10-10T00:00:00Z'}]
+      - input: ref('int_aggregate_hash_game')
+        rows:
+          - {entity_type: equipment, entity_key: ok, row_hash: h1, content_hash: c1, state: live}
+      - input: ref('int_aggregate_hash_ledger')
+        rows: []
+      - input: source('prev', 'entity_current')
+        rows:
+          - {entity_type: equipment, entity_key: ok, row_hash: h1, content_hash: c1, state: live, last_operation: INSERT, last_revision: 1}
+          - {entity_type: equipment, entity_key: broken, row_hash: h2, content_hash: c2, state: live, last_operation: INSERT, last_revision: 1}
+          - {entity_type: proc, entity_key: orphan, row_hash: p, content_hash: p, last_operation: INSERT, last_revision: 1}
+      - input: ref('int_alias_new')
+        rows: []
+      - input: ref('stg_parse_error')
+        rows: [{source_id: broken, error: 'boom'}]
+    expect:
+      rows: []
+
+  - name: int_changes_shared_delete_emitted_without_parse_error
+    description: "P29 - same state, every shipped uid parses (broken simply vanished: no row) -> the DELETE is emitted"
+    model: int_changes
+    overrides:
+      vars:
+        aggregates: [{entity_type: equipment, deletable: false}, {entity_type: proc, deletable: true}]
+    given:
+      - input: ref('int_run')
+        rows: [{revision: 7, started_at: '2026-10-10T00:00:00Z'}]
+      - input: ref('int_aggregate_hash_game')
+        rows:
+          - {entity_type: equipment, entity_key: ok, row_hash: h1, content_hash: c1, state: live}
+      - input: ref('int_aggregate_hash_ledger')
+        rows: []
+      - input: source('prev', 'entity_current')
+        rows:
+          - {entity_type: equipment, entity_key: ok, row_hash: h1, content_hash: c1, state: live, last_operation: INSERT, last_revision: 1}
+          - {entity_type: equipment, entity_key: broken, row_hash: h2, content_hash: c2, state: live, last_operation: INSERT, last_revision: 1}
+          - {entity_type: proc, entity_key: orphan, row_hash: p, content_hash: p, last_operation: INSERT, last_revision: 1}
+      - input: ref('int_alias_new')
+        rows: []
+      - input: ref('stg_parse_error')
+        rows: []
+    expect:
+      rows: [{revision: 7, entity_type: proc, entity_key: orphan, operation: DELETE, row_hash: null}]

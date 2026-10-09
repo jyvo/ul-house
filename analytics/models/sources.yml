@@ -1,0 +1,176 @@
+version: 2
+
+sources:
+  - name: seed
+    description: seed.sqlite tables (C1), bytes dropped
+    schema: raw
+    tables:
+      - name: page
+        columns:
+          - name: url
+            data_tests: [not_null, unique]
+          - name: kind
+            data_tests:
+              - accepted_values: {arguments: {values: ['list', 'new_release', 'detail']}}
+          - name: html_sha256
+            data_tests:
+              - not_null: {config: {where: "kind = 'detail' and status = 200"}}
+      - name: asset
+        columns:
+          - name: sha256
+            data_tests:
+              - not_null: {config: {where: "status = 200"}}
+          - name: kind
+            data_tests:
+              - accepted_values: {arguments: {values: ['equipment', 'item', 'ability']}}
+      - name: listing
+        columns:
+          - name: source_url
+            data_tests:
+              - relationships: {arguments: {to: "source('seed', 'page')", field: url}}
+      - name: frontier
+        columns:
+          - name: item_id
+            data_tests: [not_null, unique]
+          - name: state
+            data_tests:
+              - accepted_values: {arguments: {values: ['pending', 'in_flight', 'done', 'failed', 'gone']}}
+          - name: entry_kind
+            data_tests:
+              - accepted_values: {arguments: {values: ['catalog', 'reference']}}
+      - name: evo_link
+      - name: crawl_run
+      - name: unlisted_release
+      - name: meta
+        columns:
+          - name: key
+            data_tests: [not_null, unique]
+  - name: records
+    description: T1 rows.py Records (C2), one table per list, plus parse_error
+    schema: raw
+    tables:
+      - name: stg_equipment
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid]}}
+      - name: stg_weapon
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_defensive_gear
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_monster
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_stat
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid, label, tier]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_proc
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_proc_condition
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid, ordinal]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_proc_scaling
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid, ordinal]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_weapon_ability
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_monster_skill
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid, ordinal]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_passive_skill
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_potential_level
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid, level]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_skill_effect
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid, owner_kind, owner_ordinal, ordinal]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_evolution
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid, kind]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_evolution_material
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_uid, kind, ordinal]}}
+        columns:
+          - name: source_uid
+            data_tests:
+              - relationships: {arguments: {to: "source('records', 'stg_equipment')", field: source_uid}}
+      - name: stg_element
+        data_tests:
+          - unique_combination: {arguments: {columns: [element_id]}}
+      - name: stg_element_relation
+        data_tests:
+          - unique_combination: {arguments: {columns: [element_id, kind, ordinal]}}
+      - name: parse_error
+        data_tests:
+          - unique_combination: {arguments: {columns: [source_id]}}
+  - name: prev
+    description: the previous history (history/previous.duckdb), read-only; prior state only
+    database: prev
+    schema: main
+    tables:
+      - name: entity_current
+      - name: uid_retired
+      - name: uid_alias
+      - name: alias_candidate
+      - name: alias_rejected
+      - name: equipment_seen
+      - name: transform_run
+      - name: population
+      - name: obs_data_quality
+      - name: obs_gate_finding

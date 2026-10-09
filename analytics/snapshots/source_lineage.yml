@@ -1,0 +1,9 @@
+snapshots:
+  - name: source_lineage
+    relation: ref('int_source_lineage')
+    config:
+      database: history
+      schema: main
+      unique_key: uid
+      strategy: timestamp
+      updated_at: retrieved_at

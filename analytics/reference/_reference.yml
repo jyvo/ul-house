@@ -1,0 +1,15 @@
+version: 2
+
+seeds:
+  - name: confirmed_aliases
+    columns:
+      - name: old_uid
+        data_tests: [unique, not_null]
+      - name: new_uid
+        data_tests: [not_null]
+  - name: rejected_aliases
+    data_tests:
+      - unique_combination: {arguments: {columns: [old_uid, new_uid]}}
+  - name: vocabulary
+    data_tests:
+      - unique_combination: {arguments: {columns: [domain, value]}}

@@ -1,0 +1,38 @@
+[check.optional_field_null]
+scopes   = { new_item = "info", reference = "info", catalog = "warning" }
+escalate = { scope = "catalog", level = "blocker", min_count = 25, min_pct = 5.0 }
+
+[check.retired]
+scopes   = { reference = "warning", catalog = "warning" }
+escalate = { scope = "catalog", level = "blocker", min_count = 25, min_pct = 1.0 }
+
+[check.count_drop]
+scopes   = { catalog = "info" }
+escalate = { scope = "catalog", level = "blocker", min_count = 1, min_pct = 20.0 }
+
+[check.parse_failure]
+scopes   = { catalog = "warning" }
+escalate = { scope = "catalog", level = "blocker", min_count = 5, min_pct = 1.0 }
+
+[check.unexplained_churn]
+scopes   = { catalog = "info" }
+escalate = { scope = "catalog", level = "blocker", min_count = 50, min_pct = 30.0 }
+
+[check.icon_missing]
+scopes   = { reference = "info", new_item = "warning", catalog = "warning" }
+escalate = { scope = "catalog", level = "blocker", min_count = 10, min_pct = 2.0 }
+
+[check.unlisted_release]
+scopes   = { catalog = "info" }
+escalate = { scope = "catalog", level = "warning", min_runs = 3 }
+
+[check.wiki_contradiction]
+scopes   = { reference = "info", catalog = "warning" }
+escalate = { scope = "catalog", level = "blocker", min_count = 5, min_pct = 1.0 }
+
+[check.unknown_vocabulary]
+scopes   = { reference = "info", catalog = "warning" }
+escalate = { scope = "catalog", level = "blocker", min_count = 5, min_pct = 1.0 }
+
+[check.canary]
+scopes   = { catalog = "blocker" }

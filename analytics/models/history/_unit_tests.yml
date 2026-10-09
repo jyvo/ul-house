@@ -1,0 +1,64 @@
+version: 2
+
+unit_tests:
+  - name: entity_current_overlay
+    description: keeps untouched rows, replaces changed ones, records DELETE
+    model: entity_current
+    given:
+      - input: source('prev', 'entity_current')
+        rows:
+          - {entity_type: proc, entity_key: keep, row_hash: k, content_hash: k, last_revision: 1, last_operation: INSERT, content_changed_at: t1}
+          - {entity_type: equipment, entity_key: chg, row_hash: c, content_hash: c, last_revision: 1, last_operation: INSERT, state: live, content_changed_at: t1}
+          - {entity_type: proc, entity_key: del, row_hash: d, content_hash: d, last_revision: 1, last_operation: INSERT, content_changed_at: t1}
+          - {entity_type: equipment, entity_key: ali, row_hash: a, content_hash: a, last_revision: 2, last_operation: RETIRE, state: retired, retired_revision: 2, content_changed_at: t1}
+      - input: ref('int_changes')
+        rows:
+          - {revision: 3, entity_type: equipment, entity_key: chg, operation: UPDATE, row_hash: c2, content_hash: c2, state: live, changed_at: t3}
+          - {revision: 3, entity_type: proc, entity_key: del, operation: DELETE, row_hash: null, content_hash: null, changed_at: t3}
+          - {revision: 3, entity_type: equipment, entity_key: ali, operation: ALIAS, row_hash: a, content_hash: a, changed_at: t3}
+    expect:
+      rows:
+        - {entity_type: proc, entity_key: keep, row_hash: k, last_revision: 1, last_operation: INSERT, content_changed_at: t1}
+        - {entity_type: equipment, entity_key: chg, row_hash: c2, last_revision: 3, last_operation: UPDATE, content_changed_at: t3}
+        - {entity_type: proc, entity_key: del, row_hash: null, last_revision: 3, last_operation: DELETE, content_changed_at: t1}
+        - {entity_type: equipment, entity_key: ali, row_hash: a, last_revision: 2, last_operation: RETIRE, content_changed_at: t1}
+
+  - name: ledger_uid_retired_appends_only_new
+    model: ledger_uid_retired
+    overrides:
+      macros: {is_incremental: true}
+    given:
+      - input: this
+        rows: [{uid: a, since_revision: 1, reason: gone}]
+      - input: ref('int_retired_new')
+        rows:
+          - {uid: a, since_revision: 1, reason: gone}
+          - {uid: b, since_revision: 2, reason: out_of_scope}
+    expect:
+      rows: [{uid: b, since_revision: 2, reason: out_of_scope}]
+
+  - name: ledger_dataset_changes_empty_input_appends_nothing
+    model: ledger_dataset_changes
+    overrides:
+      macros: {is_incremental: true}
+    given:
+      - input: this
+        rows: [{revision: 1, entity_type: proc, entity_key: '1', operation: INSERT, row_hash: h, changed_at: t}]
+      - input: ref('int_changes')
+        rows: []
+    expect:
+      rows: []
+
+  - name: population_appends_only_new
+    model: population
+    overrides:
+      macros: {is_incremental: true}
+    given:
+      - input: this
+        rows: [{run_id: r1, revision: 1, scope: catalog, value: 8, observed_at: t}]
+      - input: ref('int_run')
+        rows: [{run_id: r1, revision: 1, started_at: t}]
+      - input: ref('int_population')
+        rows: [{scope: catalog, value: 8}, {scope: reference, value: 0}]
+    expect:
+      rows: [{run_id: r1, revision: 1, scope: reference, value: 0, observed_at: t}]

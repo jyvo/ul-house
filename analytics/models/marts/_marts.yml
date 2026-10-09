@@ -1,0 +1,630 @@
+version: 2
+
+models:
+  - name: mart_element
+    columns:
+      - name: element_id
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+          - accepted_values: {arguments: {values: ['fire', 'water', 'wind', 'light', 'dark', 'time', 'star', 'none']}}
+  - name: mart_element_relation
+    constraints:
+      - type: primary_key
+        columns: [element_id, related_id, kind]
+    data_tests:
+      - unique_combination: {arguments: {columns: [element_id, related_id, kind]}}
+    columns:
+      - name: element_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_element')", field: element_id}}
+      - name: related_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_element')", field: element_id}}
+      - name: kind
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: ['effective', 'weakness']}}
+  - name: mart_item
+    columns:
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+      - name: name
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+  - name: mart_icon
+    columns:
+      - name: sha256
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+      - name: kind
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: ['equipment', 'item', 'ability']}}
+      - name: bytes
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+  - name: mart_skill_effect
+    data_tests:
+      - unique_combination: {arguments: {columns: [target, description]}}
+    columns:
+      - name: effect_id
+        data_type: bigint
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+      - name: target
+        data_type: varchar
+      - name: description
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+  - name: mart_proc_family
+    columns:
+      - name: family_id
+        data_type: bigint
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+      - name: name
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - unique
+  - name: mart_proc
+    columns:
+      - name: proc_id
+        data_type: bigint
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+      - name: family_id
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_proc_family')", field: family_id}}
+      - name: element_id
+        data_type: varchar
+        data_tests:
+          - relationships: {arguments: {to: "ref('mart_element')", field: element_id}}
+      - name: size
+        data_type: varchar
+      - name: raw_name
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: activation_rate
+        data_type: varchar
+      - name: element_position
+        data_type: varchar
+        data_tests:
+          - accepted_values: {arguments: {values: ['prefix', 'suffix', 'infix']}}
+  - name: mart_proc_condition
+    constraints:
+      - type: primary_key
+        columns: [proc_id, ordinal]
+    data_tests:
+      - unique_combination: {arguments: {columns: [proc_id, ordinal]}}
+    columns:
+      - name: proc_id
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_proc')", field: proc_id}}
+      - name: ordinal
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: condition
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+  - name: mart_proc_scaling
+    constraints:
+      - type: primary_key
+        columns: [proc_id, ordinal]
+    data_tests:
+      - unique_combination: {arguments: {columns: [proc_id, ordinal]}}
+    columns:
+      - name: proc_id
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_proc')", field: proc_id}}
+      - name: ordinal
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: scale_kind
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: element_id
+        data_type: varchar
+        data_tests:
+          - relationships: {arguments: {to: "ref('mart_element')", field: element_id}}
+      - name: gear_kind
+        data_type: varchar
+        data_tests:
+          - accepted_values: {arguments: {values: ['weapons', 'gear']}}
+      - name: cap
+        data_type: varchar
+      - name: pieces_needed
+        data_type: bigint
+      - name: description
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+  - name: mart_weapon_ability
+    columns:
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+      - name: name
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+  - name: mart_passive_skill
+    data_tests:
+      - unique_combination: {arguments: {columns: [name, effect_hash]}}
+    columns:
+      - name: passive_id
+        data_type: bigint
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+      - name: name
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: effect_hash
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+  - name: mart_equipment
+    columns:
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+      - name: name
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: rarity
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: ['UR', 'SSR']}}
+      - name: gear_type
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: cost
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: element_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_element')", field: element_id}}
+      - name: max_level
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: icon_sha
+        data_type: varchar
+      - name: entry_kind
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: ['catalog', 'reference']}}
+      - name: keep_reason
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: evo_depth
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: state
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: ['live', 'retired']}}
+      - name: retired_revision
+        data_type: bigint
+      - name: first_seen
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: last_seen
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: last_changed_revision
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+  - name: mart_weapon
+    columns:
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_equipment')", field: uid}}
+      - name: infusion_count
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: proc_id
+        data_type: bigint
+        data_tests:
+          - relationships: {arguments: {to: "ref('mart_proc')", field: proc_id}}
+      - name: ability_uid
+        data_type: varchar
+        data_tests:
+          - relationships: {arguments: {to: "ref('mart_weapon_ability')", field: uid}}
+  - name: mart_defensive_gear
+    columns:
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_equipment')", field: uid}}
+      - name: infusion_count
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: proc_id
+        data_type: bigint
+        data_tests:
+          - relationships: {arguments: {to: "ref('mart_proc')", field: proc_id}}
+  - name: mart_monster
+    columns:
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_equipment')", field: uid}}
+      - name: passive_id
+        data_type: bigint
+        data_tests:
+          - relationships: {arguments: {to: "ref('mart_passive_skill')", field: passive_id}}
+      - name: restrictions
+        data_type: varchar
+  - name: mart_monster_skill
+    data_tests:
+      - unique_combination: {arguments: {columns: [uid, ordinal]}}
+    columns:
+      - name: skill_id
+        data_type: bigint
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_monster')", field: uid}}
+      - name: ordinal
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: name
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+  - name: mart_potential_level
+    constraints:
+      - type: primary_key
+        columns: [uid, level]
+    data_tests:
+      - unique_combination: {arguments: {columns: [uid, level]}}
+    columns:
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_monster')", field: uid}}
+      - name: level
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: effect_id
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_skill_effect')", field: effect_id}}
+  - name: mart_effect_link
+    constraints:
+      - type: primary_key
+        columns: [owner_kind, owner_id, ordinal]
+    data_tests:
+      - unique_combination: {arguments: {columns: [owner_kind, owner_id, ordinal]}}
+    columns:
+      - name: owner_kind
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: ['proc', 'weapon_ability', 'monster_skill', 'passive_skill', 'potential_level']}}
+      - name: owner_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - polymorphic_relationship: {arguments: {kind_value: proc, to: "ref('mart_proc')", to_field: proc_id}}
+          - polymorphic_relationship: {arguments: {kind_value: weapon_ability, to: "ref('mart_weapon_ability')", to_field: uid}}
+          - polymorphic_relationship: {arguments: {kind_value: monster_skill, to: "ref('mart_monster_skill')", to_field: skill_id}}
+          - polymorphic_relationship: {arguments: {kind_value: passive_skill, to: "ref('mart_passive_skill')", to_field: passive_id}}
+          - polymorphic_relationship: {arguments: {kind_value: potential_level}}
+      - name: ordinal
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: effect_id
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_skill_effect')", field: effect_id}}
+  - name: mart_stat
+    constraints:
+      - type: primary_key
+        columns: [uid, label, tier]
+    data_tests:
+      - unique_combination: {arguments: {columns: [uid, label, tier]}}
+    columns:
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: "ref('mart_equipment')", field: uid}}
+      - name: label
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: tier
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: value
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+  - name: mart_evolution_edge
+    constraints:
+      - type: primary_key
+        columns: [kind, from_uid, to_uid]
+    data_tests:
+      - unique_combination: {arguments: {columns: [kind, from_uid, to_uid]}}
+    columns:
+      - name: kind
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: ['reforge', 'awakening', 'enlightening']}}
+      - name: from_uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: to_uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: evidence
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: ['before', 'after', 'both']}}
+      - name: from_name
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: to_name
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+  - name: mart_evolution_chain
+    constraints:
+      - type: primary_key
+        columns: [kind, uid]
+    data_tests:
+      - unique_combination: {arguments: {columns: [kind, uid]}}
+    columns:
+      - name: kind
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: ['reforge', 'awakening', 'enlightening']}}
+      - name: chain_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: position
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+  - name: mart_evolution_material
+    constraints:
+      - type: primary_key
+        columns: [kind, from_uid, to_uid, ordinal]
+    data_tests:
+      - unique_combination: {arguments: {columns: [kind, from_uid, to_uid, ordinal]}}
+    columns:
+      - name: kind
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: ['reforge', 'awakening', 'enlightening']}}
+      - name: from_uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: to_uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: ordinal
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: material_kind
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: ['gear', 'item']}}
+      - name: ref_uid
+        data_type: varchar
+      - name: ref_name
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: quantity
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+  - name: mart_uid_retired
+    columns:
+      - name: uid
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+      - name: since_revision
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: reason
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: ['gone', 'out_of_scope', 'downgraded']}}
+  - name: mart_uid_alias
+    columns:
+      - name: old_uid
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique
+          - not_null
+      - name: new_uid
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: since_revision
+        data_type: bigint
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
+      - name: confirmed_commit
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - not_null
