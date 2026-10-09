@@ -1,0 +1,351 @@
+openapi: 3.1.0
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+info:
+  title: UL House sync API
+  version: "1"
+  summary: Public, read-only sync contract for UL House dataset releases.
+  description: |
+    Truth for API v1. The JSON Schemas under schemas/ are normative. FastAPI's generated OpenAPI is disabled and never consulted.
+
+    Rules for every operation:
+    * GET only. Any other method on any path answers 405 `method_not_allowed` with `Allow: GET`.
+      HEAD is not part of the contract.
+    * Path parameters are canonical (decimal without leading zeros, lowercase hex). Anything else,
+      any unknown path and any trailing slash is 404 `not_found` -- never 400/422, never a redirect --
+      so every path could be a static file.
+    * Artifacts are served byte for byte as stored under pub/. No Content-Encoding is applied to
+      application/gzip, application/zip or image/png bodies; every sha256 in a manifest covers the
+      stored bytes. JSON bodies may be transfer-compressed by the platform; the decoded bytes are the
+      stored bytes.
+    * Every response produced by the API carries `X-API-Commit` and `X-Content-Type-Options: nosniff`.
+      A response WITHOUT `X-API-Commit` was produced by the platform, not by the API -- notably
+      Cloudflare error 1027 once the free plan's 100,000 requests/day are used (until 00:00 UTC).
+      Clients treat such responses, 429 and every 5xx as "API unavailable": keep local data, retry later
+      with jitter (after the next 00:00 UTC for 1027). See x-platform-responses.
+    * Error bodies are application/json matching #/components/schemas/Error, with
+      `Cache-Control: no-store`.
+    * Producers emit exactly the schema properties; consumers ignore unknown properties. Additive
+      changes stay in /v1 and raise api_schema_version; a breaking change is /v2, served alongside /v1.
+    * No cookies, no authentication, no CORS headers in v1 (PIPELINE_PROPOSAL.md §2.4).
+servers:
+  - url: http://127.0.0.1:8787
+    description: Local dev (uvicorn over a pub/-shaped directory). The deployed base URL is client configuration.
+x-platform-responses:
+  over-daily-cap:
+    description: >-
+      Cloudflare error 1027 (free plan, 100,000 requests/day, resets 00:00 UTC). Produced by the platform before the Worker 
+      runs: HTML body, no X-API-Commit header, status chosen by the platform. Clients back off until after 00:00 UTC + jitter.
+  cpu-exceeded:
+    description: Cloudflare error 1102 (CPU limit). Platform 5xx without X-API-Commit; retry later.
+paths:
+  /v1/version:
+    get:
+      operationId: getVersion
+      summary: The commit pointer pub/current.json, byte for byte.
+      x-pub-key: current.json
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: current.json exactly as stored (never re-serialised -- it is signed).
+          headers:
+            Cache-Control: {$ref: '#/components/headers/CachePointer'}
+            ETag: {$ref: '#/components/headers/ETag'}
+            Content-Length: {$ref: '#/components/headers/ContentLength'}
+            X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+            X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+          content:
+            application/json:
+              schema: {$ref: 'schemas/current.schema.json'}
+        '304': {$ref: '#/components/responses/NotModifiedPointer'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /v1/manifests/{revision}:
+    get:
+      operationId: getManifest
+      summary: The immutable manifest of a retained revision.
+      x-pub-key: manifests/{revision}.json
+      parameters:
+        - $ref: '#/components/parameters/Revision'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: manifests/{revision}.json exactly as stored; sha256 equals current.json manifest_sha256 for the current revision.
+          headers:
+            Cache-Control: {$ref: '#/components/headers/CacheImmutable'}
+            ETag: {$ref: '#/components/headers/ETag'}
+            Content-Length: {$ref: '#/components/headers/ContentLength'}
+            X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+            X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+          content:
+            application/json:
+              schema: {$ref: 'schemas/manifest.schema.json'}
+        '304': {$ref: '#/components/responses/NotModifiedImmutable'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /v1/updates/{from_revision}:
+    get:
+      operationId: getUpdate
+      summary: The precomputed cumulative package from_revision -> current, or a requires_snapshot answer.
+      description: |
+        Decided from pub/current.json (revision N, minimum_revision M) only; the API computes nothing else:
+        * from_revision >= N            -> 404 `no_update`
+        * from_revision <  M            -> 200 application/json requires_snapshot, reason `below_minimum`
+        * M <= from_revision < N        -> 200 application/gzip, the object updates/{from_revision}-{N}.json.gz;
+                                           if that object is absent -> 200 requires_snapshot, reason `package_missing`
+        The two 200 bodies are told apart by Content-Type. X-UL-To-Revision names the revision the answer
+        leads to (N); a client whose /v1/version said otherwise re-polls /v1/version (a release landed in
+        between) before trusting the body.
+      x-pub-key: updates/{from_revision}-{current}.json.gz
+      parameters:
+        - $ref: '#/components/parameters/FromRevision'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Package (gzip bytes as stored) or requires_snapshot (JSON).
+          headers:
+            Cache-Control: {$ref: '#/components/headers/CachePointer'}
+            ETag: {$ref: '#/components/headers/ETag'}
+            Content-Length: {$ref: '#/components/headers/ContentLength'}
+            X-UL-To-Revision: {$ref: '#/components/headers/XUlToRevision'}
+            X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+            X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+          content:
+            application/gzip:
+              schema: {type: string, contentMediaType: application/gzip}
+              x-decoded-schema: {$ref: 'schemas/update_package.schema.json'}
+            application/json:
+              schema: {$ref: 'schemas/requires_snapshot.schema.json'}
+        '304': {$ref: '#/components/responses/NotModifiedUpdates'}
+        '404': {$ref: '#/components/responses/NotFoundOrNoUpdate'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /v1/snapshots/{revision}:
+    get:
+      operationId: getSnapshot
+      summary: A full snapshot, streamed.
+      x-pub-key: snapshots/unison-{revision}.sqlite.gz
+      parameters:
+        - $ref: '#/components/parameters/Revision'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: snapshots/unison-{revision}.sqlite.gz exactly as stored (gzip of a SQLite file).
+          headers:
+            Cache-Control: {$ref: '#/components/headers/CacheImmutable'}
+            ETag: {$ref: '#/components/headers/ETag'}
+            Content-Length: {$ref: '#/components/headers/ContentLength'}
+            X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+            X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+          content:
+            application/gzip:
+              schema: {type: string, contentMediaType: application/gzip}
+        '304': {$ref: '#/components/responses/NotModifiedImmutable'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /v1/icons/packs/{name}:
+    get:
+      operationId: getIconPack
+      summary: A base or delta icon pack (zip). Declared before /v1/icons/{kind}/{sha256}; "packs" is not an icon kind.
+      x-pub-key: icons/packs/{name}
+      parameters:
+        - $ref: '#/components/parameters/PackName'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The zip as stored. Its first member is index.json (schemas/icon_pack.schema.json); the others are {kind}/{sha256}.png.
+          headers:
+            Cache-Control: {$ref: '#/components/headers/CacheImmutable'}
+            ETag: {$ref: '#/components/headers/ETag'}
+            Content-Length: {$ref: '#/components/headers/ContentLength'}
+            X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+            X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+          content:
+            application/zip:
+              schema: {type: string, contentMediaType: application/zip}
+              x-member-schema: {index.json: {$ref: 'schemas/icon_pack.schema.json'}}
+        '304': {$ref: '#/components/responses/NotModifiedImmutable'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /v1/icons/{kind}/{sha256}:
+    get:
+      operationId: getIcon
+      summary: One icon by content address (lazy fallback).
+      x-pub-key: icons/{kind}/{sha256}.png
+      parameters:
+        - $ref: '#/components/parameters/IconKind'
+        - $ref: '#/components/parameters/Sha256'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The PNG as stored; sha256(body) equals the sha256 path parameter.
+          headers:
+            Cache-Control: {$ref: '#/components/headers/CacheImmutable'}
+            ETag: {$ref: '#/components/headers/ETag'}
+            Content-Length: {$ref: '#/components/headers/ContentLength'}
+            X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+            X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+          content:
+            image/png:
+              schema: {type: string, contentMediaType: image/png}
+        '304': {$ref: '#/components/responses/NotModifiedImmutable'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /v1/lineage/{revision}:
+    get:
+      operationId: getLineage
+      summary: The server-side lineage file of a revision (support only).
+      x-pub-key: lineage/{revision}.json.gz
+      parameters:
+        - $ref: '#/components/parameters/Revision'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: lineage/{revision}.json.gz exactly as stored. Content is not part of the v1 contract.
+          headers:
+            Cache-Control: {$ref: '#/components/headers/CacheImmutable'}
+            ETag: {$ref: '#/components/headers/ETag'}
+            Content-Length: {$ref: '#/components/headers/ContentLength'}
+            X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+            X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+          content:
+            application/gzip:
+              schema: {type: string, contentMediaType: application/gzip}
+        '304': {$ref: '#/components/responses/NotModifiedImmutable'}
+        '404': {$ref: '#/components/responses/NotFound'}
+components:
+  parameters:
+    Revision:
+      name: revision
+      in: path
+      required: true
+      schema: {type: string, pattern: '^[1-9][0-9]{0,14}$'}
+    FromRevision:
+      name: from_revision
+      in: path
+      required: true
+      description: The client's applied revision; 0 means "no local data".
+      schema: {type: string, pattern: '^(0|[1-9][0-9]{0,14})$'}
+    IconKind:
+      name: kind
+      in: path
+      required: true
+      description: Icon kind (PLAN P17). v1 publishes equipment only.
+      schema: {type: string, enum: [equipment, item, ability]}
+    Sha256:
+      name: sha256
+      in: path
+      required: true
+      schema: {type: string, pattern: '^[0-9a-f]{64}$'}
+    PackName:
+      name: name
+      in: path
+      required: true
+      schema: {type: string, pattern: '^(base-[1-9][0-9]{0,14}|delta-[1-9][0-9]{0,14}-[1-9][0-9]{0,14})\.zip$'}
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: An ETag from a previous response; a match answers 304.
+      schema: {type: string}
+  headers:
+    CachePointer:
+      description: Responses that follow the mutable pointer (current.json).
+      schema: {type: string, const: 'public, max-age=300'}
+    CacheImmutable:
+      description: Content-addressed or revision-addressed objects that never change.
+      schema: {type: string, const: 'public, max-age=31536000, immutable'}
+    CacheNoStore:
+      schema: {type: string, const: no-store}
+    ETag:
+      description: Opaque strong entity tag (quoted). Stable for the same stored bytes within one deployment.
+      schema: {type: string, pattern: '^"[!#-~]{1,128}"$'}
+    ContentLength:
+      schema: {type: integer, minimum: 0}
+    XUlToRevision:
+      description: The revision the /v1/updates answer leads to (the current revision when it was decided).
+      schema: {type: string, pattern: '^[1-9][0-9]{0,14}$'}
+    XApiCommit:
+      description: The api_commit of the deployed implementation (40 hex for a deployment), "dev" for local and mock implementations.
+      schema: {type: string, pattern: '^([0-9a-f]{40}|dev)$'}
+    NoSniff:
+      schema: {type: string, const: nosniff}
+    RetryAfter:
+      schema: {type: string, pattern: '^[0-9]+$'}
+    Allow:
+      schema: {type: string, const: GET}
+  responses:
+    NotModifiedPointer:
+      description: If-None-Match matched. No body.
+      headers:
+        Cache-Control: {$ref: '#/components/headers/CachePointer'}
+        ETag: {$ref: '#/components/headers/ETag'}
+        X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+        X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+    NotModifiedUpdates:
+      description: If-None-Match matched. No body. X-UL-To-Revision is sent but clients must not require it on a 304.
+      headers:
+        Cache-Control: {$ref: '#/components/headers/CachePointer'}
+        ETag: {$ref: '#/components/headers/ETag'}
+        X-UL-To-Revision: {$ref: '#/components/headers/XUlToRevision'}
+        X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+        X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+    NotModifiedImmutable:
+      description: If-None-Match matched. No body.
+      headers:
+        Cache-Control: {$ref: '#/components/headers/CacheImmutable'}
+        ETag: {$ref: '#/components/headers/ETag'}
+        X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+        X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+    NotFound:
+      description: Unknown path, non-canonical parameter, or an object that does not exist (not yet published, or pruned by retention).
+      headers:
+        Cache-Control: {$ref: '#/components/headers/CacheNoStore'}
+        X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+        X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    NotFoundOrNoUpdate:
+      description: '`no_update` when from_revision >= the current revision; `not_found` for a non-canonical from_revision.'
+      headers:
+        Cache-Control: {$ref: '#/components/headers/CacheNoStore'}
+        X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+        X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    MethodNotAllowed:
+      description: Any method other than GET, on any path.
+      headers:
+        Allow: {$ref: '#/components/headers/Allow'}
+        Cache-Control: {$ref: '#/components/headers/CacheNoStore'}
+        X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+        X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    Unavailable:
+      description: No release published yet, or pub/current.json unreadable. Clients retry later.
+      headers:
+        Retry-After: {$ref: '#/components/headers/RetryAfter'}
+        Cache-Control: {$ref: '#/components/headers/CacheNoStore'}
+        X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+        X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    Internal:
+      description: Unexpected failure inside the API.
+      headers:
+        Cache-Control: {$ref: '#/components/headers/CacheNoStore'}
+        X-API-Commit: {$ref: '#/components/headers/XApiCommit'}
+        X-Content-Type-Options: {$ref: '#/components/headers/NoSniff'}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error, message]
+      properties:
+        error:
+          enum: [not_found, no_update, method_not_allowed, unavailable, internal]
+        message:
+          type: string
+          maxLength: 200

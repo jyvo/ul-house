@@ -1,0 +1,364 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ul-house.invalid/api/v1/update_package.schema.json",
+  "title": "Update package updates/{from}-{to}.json.gz (after gunzip)",
+  "description": "Cumulative change from from_revision to to_revision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["from_revision", "to_revision", "dataset_schema_version", "ops", "icons"],
+  "properties": {
+    "from_revision": {"$ref": "#/$defs/revision"},
+    "to_revision": {"$ref": "#/$defs/revision"},
+    "dataset_schema_version": {"$ref": "#/$defs/schema_version"},
+    "ops": {"type": "array", "items": {"$ref": "#/$defs/op"}},
+    "icons": {"$ref": "#/$defs/icons"}
+  },
+  "$defs": {
+    "revision": {"type": "integer", "minimum": 1, "maximum": 999999999999999},
+    "schema_version": {"type": "integer", "minimum": 1, "maximum": 65535},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "wiki_uid": {
+      "type": "string",
+      "pattern": "^[0-9]{1,20}$",
+      "description": "A wiki id (equipment.uid, item.uid, weapon_ability.uid; uid_retired.uid; uid_alias.old_uid/new_uid)."
+    },
+    "hash_id": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,18})$",
+      "description": "A hash id (non-negative 63-bit integer) rendered as decimal text."
+    },
+    "element_id": {"type": "string", "pattern": "^[a-z]{1,16}$"},
+    "entity": {
+      "enum": [
+        "equipment", "item", "weapon_ability", "proc_family", "proc", "skill_effect",
+        "passive_skill", "icon", "element", "uid_retired", "uid_alias"
+      ],
+      "description": "Entity types of database/entities.py = dataset_changes.entity_type."
+    },
+    "deletable_entity": {
+      "enum": ["item", "weapon_ability", "proc_family", "proc", "skill_effect", "passive_skill", "icon", "element"],
+      "description": "Shared types, deletable when nothing references them."
+    },
+    "value": {"type": ["string", "integer", "number", "null"]},
+    "row": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[a-z][a-z0-9_]{0,62}$"},
+      "additionalProperties": {"$ref": "#/$defs/value"}
+    },
+    "rows": {"type": "array", "items": {"$ref": "#/$defs/row"}},
+    "key_matches_entity": {
+      "allOf": [
+        {
+          "if": {"required": ["entity"], "properties": {"entity": {"enum": ["equipment", "item", "weapon_ability", "uid_retired", "uid_alias"]}}},
+          "then": {"properties": {"key": {"$ref": "#/$defs/wiki_uid"}}}
+        },
+        {
+          "if": {"required": ["entity"], "properties": {"entity": {"enum": ["proc_family", "proc", "skill_effect", "passive_skill"]}}},
+          "then": {"properties": {"key": {"$ref": "#/$defs/hash_id"}}}
+        },
+        {
+          "if": {"required": ["entity"], "properties": {"entity": {"const": "icon"}}},
+          "then": {"properties": {"key": {"$ref": "#/$defs/sha256"}}}
+        },
+        {
+          "if": {"required": ["entity"], "properties": {"entity": {"const": "element"}}},
+          "then": {"properties": {"key": {"$ref": "#/$defs/element_id"}}}
+        }
+      ]
+    },
+    "op": {
+      "oneOf": [
+        {"$ref": "#/$defs/upsert"},
+        {"$ref": "#/$defs/retire"},
+        {"$ref": "#/$defs/alias"},
+        {"$ref": "#/$defs/delete"}
+      ]
+    },
+    "upsert": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "entity", "key", "rev", "data"],
+      "properties": {
+        "op": {"const": "UPSERT"},
+        "entity": {"$ref": "#/$defs/entity"},
+        "key": {"type": "string", "description": "uid_retired: uid; uid_alias: old_uid; otherwise the root row's primary key."},
+        "rev": {"$ref": "#/$defs/revision", "description": "Revision of this key's last net change; from_revision < rev <= to_revision."},
+        "data": {"type": "object"}
+      },
+      "allOf": [
+        {"$ref": "#/$defs/key_matches_entity"},
+        {"if": {"required": ["entity"], "properties": {"entity": {"const": "equipment"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/aggregate_equipment"}}}},
+        {"if": {"required": ["entity"], "properties": {"entity": {"const": "item"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/aggregate_item"}}}},
+        {"if": {"required": ["entity"], "properties": {"entity": {"const": "weapon_ability"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/aggregate_weapon_ability"}}}},
+        {"if": {"required": ["entity"], "properties": {"entity": {"const": "proc_family"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/aggregate_proc_family"}}}},
+        {"if": {"required": ["entity"], "properties": {"entity": {"const": "proc"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/aggregate_proc"}}}},
+        {"if": {"required": ["entity"], "properties": {"entity": {"const": "skill_effect"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/aggregate_skill_effect"}}}},
+        {"if": {"required": ["entity"], "properties": {"entity": {"const": "passive_skill"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/aggregate_passive_skill"}}}},
+        {"if": {"required": ["entity"], "properties": {"entity": {"const": "icon"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/aggregate_icon"}}}},
+        {"if": {"required": ["entity"], "properties": {"entity": {"const": "element"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/aggregate_element"}}}},
+        {"if": {"required": ["entity"], "properties": {"entity": {"const": "uid_retired"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/aggregate_uid_retired"}}}},
+        {"if": {"required": ["entity"], "properties": {"entity": {"const": "uid_alias"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/aggregate_uid_alias"}}}}
+      ]
+    },
+    "retire": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "entity", "key", "rev", "reason"],
+      "properties": {
+        "op": {"const": "RETIRE"},
+        "entity": {"const": "equipment"},
+        "key": {"$ref": "#/$defs/wiki_uid"},
+        "rev": {"$ref": "#/$defs/revision"},
+        "reason": {"$ref": "#/$defs/retire_reason"}
+      }
+    },
+    "alias": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "entity", "key", "to", "rev", "confirmed_commit"],
+      "properties": {
+        "op": {"const": "ALIAS"},
+        "entity": {"const": "equipment"},
+        "key": {"$ref": "#/$defs/wiki_uid", "description": "old uid"},
+        "to": {"$ref": "#/$defs/wiki_uid", "description": "new uid, chains already collapsed to their end."},
+        "rev": {"$ref": "#/$defs/revision"},
+        "confirmed_commit": {"$ref": "#/$defs/commit"}
+      }
+    },
+    "delete": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "entity", "key", "rev"],
+      "properties": {
+        "op": {"const": "DELETE"},
+        "entity": {"$ref": "#/$defs/deletable_entity"},
+        "key": {"type": "string"},
+        "rev": {"$ref": "#/$defs/revision"}
+      },
+      "allOf": [{"$ref": "#/$defs/key_matches_entity"}]
+    },
+    "retire_reason": {"enum": ["gone", "out_of_scope", "downgraded"]},
+    "aggregate_equipment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "equipment", "stat", "monster_skill", "potential_level", "effect_link",
+        "evolution_edge", "evolution_chain", "evolution_material"
+      ],
+      "properties": {
+        "equipment": {"$ref": "#/$defs/row"},
+        "weapon": {"$ref": "#/$defs/row"},
+        "defensive_gear": {"$ref": "#/$defs/row"},
+        "monster": {"$ref": "#/$defs/row"},
+        "stat": {"$ref": "#/$defs/rows"},
+        "monster_skill": {"$ref": "#/$defs/rows"},
+        "potential_level": {"$ref": "#/$defs/rows"},
+        "effect_link": {"$ref": "#/$defs/rows", "description": "rows whose owner is one of this aggregate's monster_skill or potential_level rows"},
+        "evolution_edge": {"$ref": "#/$defs/rows", "description": "every row with from_uid = key OR to_uid = key; columns include from_name, to_name"},
+        "evolution_chain": {"$ref": "#/$defs/rows", "description": "rows with uid = key"},
+        "evolution_material": {"$ref": "#/$defs/rows", "description": "every row with from_uid = key OR to_uid = key (P11)"}
+      },
+      "not": {
+        "anyOf": [
+          {"required": ["weapon", "defensive_gear"]},
+          {"required": ["weapon", "monster"]},
+          {"required": ["defensive_gear", "monster"]}
+        ]
+      }
+    },
+    "aggregate_item": {
+      "type": "object", "additionalProperties": false, "required": ["item"],
+      "properties": {"item": {"$ref": "#/$defs/row"}}
+    },
+    "aggregate_weapon_ability": {
+      "type": "object", "additionalProperties": false, "required": ["weapon_ability", "effect_link"],
+      "properties": {"weapon_ability": {"$ref": "#/$defs/row"}, "effect_link": {"$ref": "#/$defs/rows"}}
+    },
+    "aggregate_proc_family": {
+      "type": "object", "additionalProperties": false, "required": ["proc_family"],
+      "properties": {"proc_family": {"$ref": "#/$defs/row"}}
+    },
+    "aggregate_proc": {
+      "type": "object", "additionalProperties": false, "required": ["proc", "proc_condition", "proc_scaling", "effect_link"],
+      "properties": {
+        "proc": {"$ref": "#/$defs/row"},
+        "proc_condition": {"$ref": "#/$defs/rows"},
+        "proc_scaling": {"$ref": "#/$defs/rows"},
+        "effect_link": {"$ref": "#/$defs/rows"}
+      }
+    },
+    "aggregate_skill_effect": {
+      "type": "object", "additionalProperties": false, "required": ["skill_effect"],
+      "properties": {"skill_effect": {"$ref": "#/$defs/row"}}
+    },
+    "aggregate_passive_skill": {
+      "type": "object", "additionalProperties": false, "required": ["passive_skill", "effect_link"],
+      "properties": {"passive_skill": {"$ref": "#/$defs/row"}, "effect_link": {"$ref": "#/$defs/rows"}}
+    },
+    "aggregate_icon": {
+      "type": "object", "additionalProperties": false, "required": ["icon"],
+      "properties": {"icon": {"$ref": "#/$defs/row"}}
+    },
+    "aggregate_element": {
+      "type": "object", "additionalProperties": false, "required": ["element", "element_relation"],
+      "properties": {"element": {"$ref": "#/$defs/row"}, "element_relation": {"$ref": "#/$defs/rows"}}
+    },
+    "aggregate_uid_retired": {
+      "type": "object", "additionalProperties": false, "required": ["uid_retired"],
+      "properties": {
+        "uid_retired": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["uid", "since_revision", "reason"],
+          "properties": {
+            "uid": {"$ref": "#/$defs/wiki_uid"},
+            "since_revision": {"$ref": "#/$defs/revision"},
+            "reason": {"$ref": "#/$defs/retire_reason"}
+          }
+        }
+      }
+    },
+    "aggregate_uid_alias": {
+      "type": "object", "additionalProperties": false, "required": ["uid_alias"],
+      "properties": {
+        "uid_alias": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["old_uid", "new_uid", "since_revision", "confirmed_commit"],
+          "properties": {
+            "old_uid": {"$ref": "#/$defs/wiki_uid"},
+            "new_uid": {"$ref": "#/$defs/wiki_uid"},
+            "since_revision": {"$ref": "#/$defs/revision"},
+            "confirmed_commit": {"$ref": "#/$defs/commit"}
+          }
+        }
+      }
+    },
+    "icons": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pack", "pack_sha256", "added"],
+      "description": "Icons referenced at to_revision but not at from_revision. pack is the pub-relative delta pack; pack and pack_sha256 are null iff added is empty.",
+      "properties": {
+        "pack": {"type": ["string", "null"], "pattern": "^icons/packs/delta-[1-9][0-9]{0,14}-[1-9][0-9]{0,14}\\.zip$"},
+        "pack_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "added": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/sha256"}}
+      },
+      "if": {"properties": {"added": {"maxItems": 0}}},
+      "then": {"properties": {"pack": {"type": "null"}, "pack_sha256": {"type": "null"}}},
+      "else": {"properties": {"pack": {"type": "string"}, "pack_sha256": {"type": "string"}}}
+    }
+  },
+  "examples": [
+    {
+      "dataset_schema_version": 1,
+      "from_revision": 1,
+      "icons": {
+        "added": [
+          "411884a89c528abc3b58094342bf2e28ff8c4c138729f024e1cb6570bbf19af6"
+        ],
+        "pack": "icons/packs/delta-1-2.zip",
+        "pack_sha256": "14abdc10a8b0db7ff3190933a403f5767087a28937cb1d20adc08f8f444d8b37"
+      },
+      "ops": [
+        {
+          "data": {
+            "icon": {
+              "bytes": 70,
+              "kind": "equipment",
+              "sha256": "411884a89c528abc3b58094342bf2e28ff8c4c138729f024e1cb6570bbf19af6"
+            }
+          },
+          "entity": "icon",
+          "key": "411884a89c528abc3b58094342bf2e28ff8c4c138729f024e1cb6570bbf19af6",
+          "op": "UPSERT",
+          "rev": 2
+        },
+        {
+          "data": {
+            "effect_link": [],
+            "equipment": {
+              "cost": 12,
+              "element_id": "fire",
+              "entry_kind": "catalog",
+              "evo_depth": 0,
+              "first_seen": "2026-10-03T12:00:00Z",
+              "gear_type": "weapon",
+              "icon_sha": "411884a89c528abc3b58094342bf2e28ff8c4c138729f024e1cb6570bbf19af6",
+              "keep_reason": "cost_band",
+              "last_changed_revision": 2,
+              "last_seen": "2026-10-04T23:21:04Z",
+              "max_level": 80,
+              "name": "Fixture Blade",
+              "rarity": "SSR",
+              "retired_revision": null,
+              "state": "live",
+              "uid": "1000001"
+            },
+            "evolution_chain": [],
+            "evolution_edge": [
+              {
+                "evidence": "both",
+                "from_name": "Fixture Blade",
+                "from_uid": "1000001",
+                "kind": "reforge",
+                "to_name": "Fixture Blade+",
+                "to_uid": "1000002"
+              }
+            ],
+            "evolution_material": [],
+            "monster_skill": [],
+            "potential_level": [],
+            "stat": [
+              {
+                "label": "atk",
+                "tier": "max",
+                "uid": "1000001",
+                "value": 640
+              },
+              {
+                "label": "def",
+                "tier": "max",
+                "uid": "1000001",
+                "value": 320
+              }
+            ],
+            "weapon": {
+              "ability_uid": null,
+              "infusion_count": 0,
+              "proc_id": null,
+              "uid": "1000001"
+            }
+          },
+          "entity": "equipment",
+          "key": "1000001",
+          "op": "UPSERT",
+          "rev": 2
+        },
+        {
+          "entity": "equipment",
+          "key": "1000003",
+          "op": "RETIRE",
+          "reason": "gone",
+          "rev": 2
+        },
+        {
+          "data": {
+            "uid_retired": {
+              "reason": "gone",
+              "since_revision": 2,
+              "uid": "1000003"
+            }
+          },
+          "entity": "uid_retired",
+          "key": "1000003",
+          "op": "UPSERT",
+          "rev": 2
+        }
+      ],
+      "to_revision": 2
+    }
+  ]
+}
