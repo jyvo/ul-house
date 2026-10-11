@@ -1,0 +1,6 @@
+[project]
+name = "ul-house-api-worker"
+version = "0.1.0"
+description = "ul-house sync API worker (for pywrangler)"
+requires-python = ">=3.12"
+dependencies = ["fastapi"]

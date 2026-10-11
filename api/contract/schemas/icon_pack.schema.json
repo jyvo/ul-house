@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ul-house.invalid/api/v1/icon_pack.schema.json",
+  "title": "Icon pack listing (index.json, first member of icons/packs/*.zip)",
+  "description": "Lists every icon in a base or delta pack. The zip holds exactly index.json and one member per entry at entry.path. Verify zip's sha256 against manifest or update package first, then each member's sha256 against its name, before caching or decoding.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "pack_type", "from_revision", "to_revision", "icons"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^(base-[1-9][0-9]{0,14}|delta-[1-9][0-9]{0,14}-[1-9][0-9]{0,14})\\.zip$",
+      "description": "Basename of the pack, as in the URL /v1/icons/packs/{name}."
+    },
+    "pack_type": {"enum": ["base", "delta"]},
+    "from_revision": {
+      "oneOf": [{"$ref": "#/$defs/revision"}, {"type": "null"}],
+      "description": "null for a base pack."
+    },
+    "to_revision": {"$ref": "#/$defs/revision"},
+    "icons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sha256", "kind", "bytes", "path"],
+        "properties": {
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "kind": {"enum": ["equipment", "item", "ability"], "description": "PLAN P17."},
+          "bytes": {"type": "integer", "minimum": 1},
+          "path": {
+            "type": "string",
+            "pattern": "^(equipment|item|ability)/[0-9a-f]{64}\\.png$",
+            "description": "{kind}/{sha256}.png."
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"required": ["pack_type"], "properties": {"pack_type": {"const": "base"}}},
+      "then": {"properties": {"from_revision": {"type": "null"}, "name": {"pattern": "^base-"}}}
+    },
+    {
+      "if": {"required": ["pack_type"], "properties": {"pack_type": {"const": "delta"}}},
+      "then": {"properties": {"from_revision": {"type": "integer"}, "name": {"pattern": "^delta-"}, "icons": {"minItems": 1}}}
+    }
+  ],
+  "$defs": {
+    "revision": {"type": "integer", "minimum": 1, "maximum": 999999999999999},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "examples": [
+    {
+      "from_revision": 1,
+      "icons": [
+        {
+          "bytes": 70,
+          "kind": "equipment",
+          "path": "equipment/411884a89c528abc3b58094342bf2e28ff8c4c138729f024e1cb6570bbf19af6.png",
+          "sha256": "411884a89c528abc3b58094342bf2e28ff8c4c138729f024e1cb6570bbf19af6"
+        }
+      ],
+      "name": "delta-1-2.zip",
+      "pack_type": "delta",
+      "to_revision": 2
+    }
+  ]
+}

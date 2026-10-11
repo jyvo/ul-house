@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ul-house.invalid/api/v1/requires_snapshot.schema.json",
+  "title": "requires_snapshot answer of GET /v1/updates/{from_revision}",
+  "description": "Returned (200, application/json) when no update package from from_revision to the current revision. Client takes snapshot path with GET /v1/snapshots/{snapshot_revision}, verified against that revision's manifest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["requires_snapshot", "snapshot_revision", "from_revision", "reason"],
+  "properties": {
+    "requires_snapshot": {"const": true},
+    "snapshot_revision": {"$ref": "#/$defs/revision"},
+    "from_revision": {"type": "integer", "minimum": 0, "maximum": 999999999999999},
+    "reason": {
+      "enum": ["below_minimum", "package_missing"],
+      "description": "below_minimum: from_revision < minimum_revision (includes 0 and snapshot-only releases). package_missing: the package object is absent although from_revision >= minimum_revision."
+    }
+  },
+  "$defs": {
+    "revision": {"type": "integer", "minimum": 1, "maximum": 999999999999999}
+  },
+  "examples": [
+    {"requires_snapshot": true, "snapshot_revision": 1847, "from_revision": 1700, "reason": "below_minimum"}
+  ]
+}

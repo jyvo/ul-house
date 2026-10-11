@@ -1,0 +1,404 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ul-house.invalid/api/v1/manifest.schema.json",
+  "title": "Release manifest manifests/{N}.json",
+  "description": "Immutable description of release. Every artifact path is relative and every sha256 covers the stored bytes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "revision",
+    "dataset_schema_version",
+    "api_schema_version",
+    "minimum_revision",
+    "snapshot_only",
+    "snapshot_only_reasons",
+    "freshness",
+    "build",
+    "entity_counts",
+    "artifacts",
+    "icons",
+    "gate"
+  ],
+  "properties": {
+    "revision": {"$ref": "#/$defs/revision"},
+    "dataset_schema_version": {"$ref": "#/$defs/schema_version"},
+    "api_schema_version": {"$ref": "#/$defs/schema_version"},
+    "minimum_revision": {"$ref": "#/$defs/revision"},
+    "snapshot_only": {
+      "type": "boolean",
+      "description": "True when the release has no update packages."
+    },
+    "snapshot_only_reasons": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "Why the release has no update packages.",
+      "items": {
+        "enum": ["package_size", "dataset_schema_version", "catalog_version", "forced", "first_release", "no_base"]
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_last_updated", "dataset_generated_at"],
+      "properties": {
+        "source_last_updated": {
+          "$ref": "#/$defs/timestamp",
+          "description": "Latest page.changed_at among shipped items."
+        },
+        "dataset_generated_at": {
+          "$ref": "#/$defs/timestamp",
+          "description": "Transform finished."
+        }
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "build_commit",
+        "transform_run_id",
+        "crawl_run_id",
+        "seed_sha256",
+        "parser_version",
+        "catalog_version",
+        "catalog_commit",
+        "policy_version",
+        "policy_commit",
+        "runtime"
+      ],
+      "properties": {
+        "build_commit": {"$ref": "#/$defs/commit"},
+        "transform_run_id": {"$ref": "#/$defs/run_id"},
+        "crawl_run_id": {"$ref": "#/$defs/run_id"},
+        "seed_sha256": {"$ref": "#/$defs/sha256"},
+        "parser_version": {"type": "integer", "minimum": 1},
+        "catalog_version": {
+          "$ref": "#/$defs/sha256",
+          "description": "Scope.fingerprint()."
+        },
+        "catalog_commit": {"$ref": "#/$defs/commit"},
+        "policy_version": {
+          "$ref": "#/$defs/sha256",
+          "description": "gate_policy.toml fingerprint."
+        },
+        "policy_commit": {"$ref": "#/$defs/commit"},
+        "runtime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["python", "duckdb", "dbt_core", "dbt_duckdb"],
+          "properties": {
+            "python": {"$ref": "#/$defs/version_string"},
+            "duckdb": {"$ref": "#/$defs/version_string"},
+            "dbt_core": {"$ref": "#/$defs/version_string"},
+            "dbt_duckdb": {"$ref": "#/$defs/version_string"}
+          }
+        }
+      }
+    },
+    "entity_counts": {
+      "type": "object",
+      "description": "Row count per shipped table, keyed by export name.",
+      "additionalProperties": false,
+      "required": [
+        "equipment", "weapon", "defensive_gear", "monster", "stat",
+        "skill_effect", "weapon_ability", "monster_skill", "passive_skill", "potential_level", "effect_link",
+        "proc_family", "proc", "proc_condition", "proc_scaling",
+        "evolution_edge", "evolution_chain", "evolution_material",
+        "element", "element_relation", "item", "icon",
+        "uid_alias", "uid_retired"
+      ],
+      "properties": {
+        "equipment": {"$ref": "#/$defs/count"},
+        "weapon": {"$ref": "#/$defs/count"},
+        "defensive_gear": {"$ref": "#/$defs/count"},
+        "monster": {"$ref": "#/$defs/count"},
+        "stat": {"$ref": "#/$defs/count"},
+        "skill_effect": {"$ref": "#/$defs/count"},
+        "weapon_ability": {"$ref": "#/$defs/count"},
+        "monster_skill": {"$ref": "#/$defs/count"},
+        "passive_skill": {"$ref": "#/$defs/count"},
+        "potential_level": {"$ref": "#/$defs/count"},
+        "effect_link": {"$ref": "#/$defs/count"},
+        "proc_family": {"$ref": "#/$defs/count"},
+        "proc": {"$ref": "#/$defs/count"},
+        "proc_condition": {"$ref": "#/$defs/count"},
+        "proc_scaling": {"$ref": "#/$defs/count"},
+        "evolution_edge": {"$ref": "#/$defs/count"},
+        "evolution_chain": {"$ref": "#/$defs/count"},
+        "evolution_material": {"$ref": "#/$defs/count"},
+        "element": {"$ref": "#/$defs/count"},
+        "element_relation": {"$ref": "#/$defs/count"},
+        "item": {"$ref": "#/$defs/count"},
+        "icon": {"$ref": "#/$defs/count"},
+        "uid_alias": {"$ref": "#/$defs/count"},
+        "uid_retired": {"$ref": "#/$defs/count"}
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshot", "updates", "icon_packs", "lineage"],
+      "properties": {
+        "snapshot": {"$ref": "#/$defs/snapshot_ref"},
+        "updates": {
+          "type": "array",
+          "description": "One entry per supported starting revision r, minimum_revision <= r < revision, ascending by from_revision.",
+          "items": {"$ref": "#/$defs/update_ref"}
+        },
+        "icon_packs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["base", "deltas"],
+          "properties": {
+            "base": {"$ref": "#/$defs/base_pack_ref"},
+            "deltas": {
+              "type": "array",
+              "description": "One per starting revision whose package adds icons, ascending by from_revision.",
+              "items": {"$ref": "#/$defs/delta_pack_ref"}
+            }
+          }
+        },
+        "lineage": {"$ref": "#/$defs/lineage_ref"}
+      }
+    },
+    "icons": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "withdrawn"],
+      "properties": {
+        "count": {
+          "$ref": "#/$defs/count",
+          "description": "Icons referenced by this release (equals entity_counts.icon)."
+        },
+        "withdrawn": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "Icons purged on request; clients delete them from their cache.",
+          "items": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "warnings"],
+      "properties": {
+        "level": {
+          "enum": ["pass", "warning", "blocker"],
+          "description": "Gate outcome when the release was built. blocker only for a held candidate published after approval."
+        },
+        "warnings": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/gate_finding"}
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"required": ["snapshot_only"], "properties": {"snapshot_only": {"const": true}}},
+      "then": {
+        "properties": {
+          "snapshot_only_reasons": {"minItems": 1},
+          "artifacts": {"properties": {"updates": {"maxItems": 0}, "icon_packs": {"properties": {"deltas": {"maxItems": 0}}}}}
+        }
+      },
+      "else": {
+        "properties": {
+          "snapshot_only_reasons": {"maxItems": 0},
+          "artifacts": {"properties": {"updates": {"minItems": 1}}}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "revision": {"type": "integer", "minimum": 1, "maximum": 999999999999999},
+    "schema_version": {"type": "integer", "minimum": 1, "maximum": 65535},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "count": {"type": "integer", "minimum": 0},
+    "bytes": {"type": "integer", "minimum": 1},
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9._:-]+$",
+      "description": "crawl_run / transform_run id rendered as text."
+    },
+    "version_string": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[0-9A-Za-z.+_-]+$"},
+    "snapshot_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^snapshots/unison-[1-9][0-9]{0,14}\\.sqlite\\.gz$"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"$ref": "#/$defs/bytes"}
+      }
+    },
+    "update_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from_revision", "path", "sha256", "bytes"],
+      "properties": {
+        "from_revision": {"$ref": "#/$defs/revision"},
+        "path": {"type": "string", "pattern": "^updates/[1-9][0-9]{0,14}-[1-9][0-9]{0,14}\\.json\\.gz$"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"$ref": "#/$defs/bytes"}
+      }
+    },
+    "base_pack_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes", "icon_count"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^icons/packs/base-[1-9][0-9]{0,14}\\.zip$"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"$ref": "#/$defs/bytes"},
+        "icon_count": {"$ref": "#/$defs/count"}
+      }
+    },
+    "delta_pack_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from_revision", "path", "sha256", "bytes", "icon_count"],
+      "properties": {
+        "from_revision": {"$ref": "#/$defs/revision"},
+        "path": {"type": "string", "pattern": "^icons/packs/delta-[1-9][0-9]{0,14}-[1-9][0-9]{0,14}\\.zip$"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"$ref": "#/$defs/bytes"},
+        "icon_count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "lineage_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^lineage/[1-9][0-9]{0,14}\\.json\\.gz$"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"$ref": "#/$defs/bytes"}
+      }
+    },
+    "gate_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check", "scope", "level", "count", "message"],
+      "properties": {
+        "check": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$", "description": "gate_policy.toml check name."},
+        "scope": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$", "description": "catalog | reference | new_item | required | optional."},
+        "level": {"enum": ["warning", "blocker"]},
+        "count": {"$ref": "#/$defs/count"},
+        "pct": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "message": {"type": "string", "maxLength": 500}
+      }
+    }
+  },
+  "examples": [
+    {
+      "api_schema_version": 1,
+      "artifacts": {
+        "icon_packs": {
+          "base": {
+            "bytes": 581,
+            "icon_count": 1,
+            "path": "icons/packs/base-2.zip",
+            "sha256": "0de713d7c894f2d2a803300347467dc952b69945b8a56a239f09b9db986cf2aa"
+          },
+          "deltas": [
+            {
+              "bytes": 581,
+              "from_revision": 1,
+              "icon_count": 1,
+              "path": "icons/packs/delta-1-2.zip",
+              "sha256": "14abdc10a8b0db7ff3190933a403f5767087a28937cb1d20adc08f8f444d8b37"
+            }
+          ]
+        },
+        "lineage": {
+          "bytes": 34,
+          "path": "lineage/2.json.gz",
+          "sha256": "01f0be928628638c71a398139dfc3a2955a2b2edde084e8b55f0cbc710a6ff20"
+        },
+        "snapshot": {
+          "bytes": 54,
+          "path": "snapshots/unison-2.sqlite.gz",
+          "sha256": "d1d90a7cd19352f63b169a50304a23d79adaecaf2813f0fd0fb9b83cae7552db"
+        },
+        "updates": [
+          {
+            "bytes": 628,
+            "from_revision": 1,
+            "path": "updates/1-2.json.gz",
+            "sha256": "d123863836074764e8935ece5b2872c5c1bf53bf4fd52cd5d0e020663e45b543"
+          }
+        ]
+      },
+      "build": {
+        "build_commit": "44575cf5b28512d75644bf54a517dcef304ff809",
+        "catalog_commit": "28a6910c5da6cf7f4b3c375ea990ede0e58d69e4",
+        "catalog_version": "652f55016243bf1b9f1bbea46d5749ef892dbe394e46de9d66ab1aacf0b4af57",
+        "crawl_run_id": "2",
+        "parser_version": 1,
+        "policy_commit": "094a0b47204cf6adcd4788569c1b92072fe8810d",
+        "policy_version": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+        "runtime": {
+          "dbt_core": "1.8.0",
+          "dbt_duckdb": "1.8.0",
+          "duckdb": "1.1.0",
+          "python": "3.12.0"
+        },
+        "seed_sha256": "19b25856e1c150ca834cffc8b59b23adbd0ec0389e58eb22b3b64768098d002b",
+        "transform_run_id": "2"
+      },
+      "dataset_schema_version": 1,
+      "entity_counts": {
+        "defensive_gear": 0,
+        "effect_link": 0,
+        "element": 0,
+        "element_relation": 0,
+        "equipment": 1,
+        "evolution_chain": 0,
+        "evolution_edge": 1,
+        "evolution_material": 0,
+        "icon": 1,
+        "item": 0,
+        "monster": 0,
+        "monster_skill": 0,
+        "passive_skill": 0,
+        "potential_level": 0,
+        "proc": 0,
+        "proc_condition": 0,
+        "proc_family": 0,
+        "proc_scaling": 0,
+        "skill_effect": 0,
+        "stat": 2,
+        "uid_alias": 0,
+        "uid_retired": 1,
+        "weapon": 1,
+        "weapon_ability": 0
+      },
+      "freshness": {
+        "dataset_generated_at": "2026-10-04T23:00:00Z",
+        "source_last_updated": "2026-10-04T20:00:00Z"
+      },
+      "gate": {
+        "level": "pass",
+        "warnings": []
+      },
+      "icons": {
+        "count": 1,
+        "withdrawn": []
+      },
+      "minimum_revision": 1,
+      "revision": 2,
+      "snapshot_only": false,
+      "snapshot_only_reasons": []
+    }
+  ]
+}
