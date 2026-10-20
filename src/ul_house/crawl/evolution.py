@@ -18,20 +18,9 @@ class Hop:
     target_name: str
 
 
-def hops_from(store: Store, parent_ids: list[str], kinds: set[str], direction: str) -> list[Hop]:
-    hops = set()
-    if direction in ("predecessors", "both"):
-        for link in store.links_from(parent_ids):
-            if link["side"] == "before" and link["kind"] in kinds:
-                hops.add(Hop(link["target_id"], link["kind"], link["source_id"], link["target_name"]))
-    if direction in ("successors", "both"):
-        for link in store.links_from(parent_ids):
-            if link["side"] == "after" and link["kind"] in kinds:
-                hops.add(Hop(link["target_id"], link["kind"], link["source_id"], link["target_name"]))
-        for link in store.links_to(parent_ids):
-            if link["side"] == "before" and link["kind"] in kinds:
-                hops.add(Hop(link["source_id"], link["kind"], link["target_id"], ""))
-    return sorted(hops)
+def hops_from(store: Store, parent_ids: list[str], kinds: set[str]) -> list[Hop]:
+    return sorted({Hop(l["target_id"], l["kind"], l["source_id"], l["target_name"])
+                   for l in store.links_from(parent_ids) if l["kind"] in kinds})
 
 
 def _weaker(a: str, b: str) -> str:
@@ -49,7 +38,7 @@ def expand(store: Store, frontier: Frontier, scope: Scope, depth: int, run_id: i
 
     parents = [entry.item_id for entry in frontier.at_depth(depth - 1, "done", run_id)]
     with store.transaction():
-        for hop in hops_from(store, parents, kinds, evo.direction):
+        for hop in hops_from(store, parents, kinds):
             policy = evo.policy_for(hop.kind)
             if policy == "exclude":
                 outcome["policy_exclude"] += 1

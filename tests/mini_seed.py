@@ -164,6 +164,32 @@ MINI_ITEMS = (
 )
 UNLISTED_RELEASE = ("1999999", "Unlisted Newcomer")
 
+# Page with two after slots.
+TWO_AFTER_UID = "4435013"
+_EVO_DL = '<dl class="detail__reincarnation">'
+
+
+def evo_dl(label: str, target_id: str, target_name: str) -> str:
+    """One lineage dl with slot."""
+    return f"{_EVO_DL}{_slot(label, target_id, target_name)}</dl>"
+
+
+def insert_after_label_dl(html: bytes, label: str, extra: str) -> bytes:
+    """Insert extra after matching dl."""
+    text = html.decode()
+    at = text.index(f"<span>{label}</span>")
+    end = text.index("</dl>", at) + len("</dl>")
+    return (text[:end] + extra + text[end:]).encode()
+
+
+def served_html(uid: str) -> bytes:
+    """Bytes served for cached page."""
+    html = cached_path(uid).read_bytes()
+    if uid == TWO_AFTER_UID:
+        html = insert_after_label_dl(
+            html, "After Enlightening", evo_dl("After Enlightening", "4435354", "[Synthetic Branch] Oberon"))
+    return html
+
 
 def _skip_if_missing() -> None:
     absent = missing()
@@ -173,7 +199,7 @@ def _skip_if_missing() -> None:
 
 def mini_wiki() -> FakeWiki:
     _skip_if_missing()
-    items = [replace(item, html=cached_path(item.item_id).read_bytes()) for item in MINI_ITEMS]
+    items = [replace(item, html=served_html(item.item_id)) for item in MINI_ITEMS]
     releases = [(item.item_id, item.name) for item in items] + [UNLISTED_RELEASE]
     return FakeWiki(items, releases)
 
