@@ -299,15 +299,15 @@ SELECT gs.set_id,
        gs.profile_id,
        gs.name,
        gs.cost_cap,
-       COUNT(gss.slot) AS slot_count,
-       COALESCE(SUM(e.cost), 0) AS total_cost,
-       COALESCE(SUM(e.state = 'retired'), 0) AS retired_count,
+       COUNT(gss.slot)                                   AS slot_count,
+       COALESCE(SUM(e.cost), 0)                          AS total_cost,
+       COALESCE(SUM(e.state = 'retired'), 0)             AS retired_count,
        (gs.cost_cap IS NOT NULL
-        AND COALESCE(SUM(e.cost), 0) > gs.cost_cap) AS over_cap
+        AND COALESCE(SUM(e.cost), 0) > gs.cost_cap)      AS over_cap
 FROM gear_set AS gs
 LEFT JOIN gear_set_slot AS gss ON gss.set_id = gs.set_id
-LEFT JOIN inventory AS inv ON inv.profile_id = gss.profile_id AND inv.inv_id = gss.inv_id
-LEFT JOIN equipment AS e ON e.uid = inv.uid
+LEFT JOIN inventory     AS inv ON inv.profile_id = gss.profile_id AND inv.inv_id = gss.inv_id
+LEFT JOIN equipment     AS e   ON e.uid = inv.uid
 GROUP BY gs.set_id;
 
 CREATE VIEW IF NOT EXISTS stat_assignable AS
