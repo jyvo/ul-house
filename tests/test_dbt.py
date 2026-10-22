@@ -1,4 +1,4 @@
-"""dbt project e2e on mini seed (-m dbt)"""
+"""dbt end-to-end on mini seed"""
 from __future__ import annotations
 
 import hashlib
@@ -17,7 +17,7 @@ duckdb = pytest.importorskip("duckdb")
 import dbt_harness as P
 from catalog_fixtures import CATALOG
 from fetch_fixtures import UIDS, cached_path
-from mini_seed import MINI_CLOCK, fake_png, mini_scope
+from mini_seed import MINI_CLOCK, TWO_AFTER_UID, fake_png, mini_scope, served_html
 from ul_house import ids
 from ul_house import rows as R
 from ul_house.build import dbt as wrapper
@@ -179,17 +179,17 @@ def models():
 
 
 def expected_edges():
-    """(kind, from, to) -> evidence, from the parsed claims (consistent)"""
-    records = R.rows([R.parse_page(u, "h", cached_path(u).read_bytes()) for u in sorted(UIDS)],
+    """parsed `before` claims, one edge each"""
+    records = R.rows([R.parse_page(u, "h", served_html(u)) for u in sorted(UIDS)],
                      run_id="x", parser_version=PARSER_VERSION)
-    claims: dict[tuple, set] = {}
-    for e in records.stg_evolution:
-        if e.before_uid:
-            claims.setdefault((e.kind, e.before_uid, e.source_uid), set()).add("before")
-        if e.after_uid:
-            claims.setdefault((e.kind, e.source_uid, e.after_uid), set()).add("after")
-    edges = {k: ("both" if len(v) == 2 else next(iter(v))) for k, v in claims.items()}
+    edges = {(e.kind, e.before_uid, e.source_uid) for e in records.stg_evolution if e.before_uid}
     return records, edges
+
+
+def warn_rows(boot, name: str) -> int:
+    """Rows a warn-level test returned."""
+    (count,) = [r["failures"] for r in boot.run_results()["results"] if r["unique_id"].endswith(f".{name}")]
+    return count
 
 
 class TestProject:
@@ -402,9 +402,21 @@ class TestBootstrap:
 
     def test_evolution_edges(self, boot):
         _, want = expected_edges()
-        got = {(k, f, t): e for k, f, t, e in boot.q("SELECT kind, from_uid, to_uid, evidence FROM evolution_edge")}
-        assert got == want
-        assert got[("reforge", "4434015", "4435013")] == "both"
+        got = set(boot.q("SELECT kind, from_uid, to_uid FROM evolution_edge"))
+        assert got == want and len(got) == 7
+        assert ("reforge", "4434015", "4435013") in got
+        # the former after-only edges are gone
+        assert ("awakening", "1015157", "1015615") not in got
+        assert ("enlightening", "4435013", "4435353") not in got
+
+    def test_two_after_page_ships_with_its_before_edge(self, boot):
+        assert boot.q("SELECT count(*) FROM equipment WHERE uid = ?", TWO_AFTER_UID) == [(1,)]
+        assert ("reforge", "4434015", TWO_AFTER_UID) in set(boot.q("SELECT kind, from_uid, to_uid FROM evolution_edge"))
+        # no raw.parse_error for it
+        assert boot.q("SELECT count(*) FROM raw.parse_error WHERE source_id = ?", TWO_AFTER_UID) == [(0,)]
+        # build passed: no frontier contract failure
+        assert boot.failing() == []
+        assert boot.decision is None or boot.decision.level in ("pass", "warning")
 
     def test_edge_names_of_unshipped_endpoints(self, boot):
         records, _ = expected_edges()
@@ -412,8 +424,6 @@ class TestBootstrap:
         for e in records.stg_evolution:
             if e.before_uid:
                 names[e.before_uid] = e.before_name
-            if e.after_uid:
-                names[e.after_uid] = e.after_name
         for kind, f, t, fn, tn in boot.q("SELECT kind, from_uid, to_uid, from_name, to_name FROM evolution_edge"):
             if f not in UIDS:
                 assert norm(fn) == norm(names[f]), (kind, f, t)
@@ -443,16 +453,24 @@ class TestBootstrap:
         assert got == want
 
     def test_evolution_materials_follow_the_attribution_rule(self, boot):
+        """material list attaches iff one edge"""
         records, edges = expected_edges()
-        evo = {(e.source_uid, e.kind): e for e in records.stg_evolution}
-        want = set()
+        successors: dict[tuple, list] = {}
+        for k, f, t in edges:
+            successors.setdefault((k, f), []).append(t)
+        want, dropped = set(), 0
         for m in records.stg_evolution_material:
-            e = evo[(m.source_uid, m.kind)]
-            f, t = (m.source_uid, e.after_uid) if e.after_uid else (e.before_uid, m.source_uid)
-            want.add((m.kind, f, t, m.ordinal, m.material_kind, m.ref_uid, norm(m.ref_name), m.quantity))
+            nxt = successors.get((m.kind, m.source_uid), [])
+            if len(nxt) != 1:
+                dropped += 1
+                continue
+            (to,) = nxt
+            want.add((m.kind, m.source_uid, to, m.ordinal, m.material_kind, m.ref_uid, norm(m.ref_name), m.quantity))
         got = set(boot.q("SELECT kind, from_uid, to_uid, ordinal, material_kind, ref_uid, ref_name, quantity FROM evolution_material"))
-        assert got == want
+        assert got == want and len(got) == 2
         assert all((k, f, t) in edges for k, f, t, *_ in got)
+        assert {(k, f, t) for k, f, t, *_ in got} == {("reforge", "4434015", "4435013")}
+        assert dropped == 18 == warn_rows(boot, "info__evolution_material_dropped")
 
     def test_items_are_the_item_materials(self, boot):
         records, _ = expected_edges()

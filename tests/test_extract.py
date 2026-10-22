@@ -22,7 +22,7 @@ class TestName:
 
 class TestData:
     def test_keys_are_spaced_and_casefolded(self, soups):
-        """parser looks these up verbatim, so the exact spelling matters"""
+        """parser looks for exact spelling"""
         assert set(fetch_data(soups["1015655"])) == {
             "rarity",
             "gear type",
@@ -76,7 +76,7 @@ class TestAbility:
 
 class TestSkills:
     def test_returns_heading_pairs(self, soups):
-        """a list of pairs, not a mapping: headings repeat as 'skill #1' / 'skill #2'"""
+        """list of pairs; headings repeat"""
         blocks = fetch_skills(soups["1500502"])
         assert [heading for heading, _ in blocks] == [
             "skill #1",
@@ -107,7 +107,7 @@ class TestSkills:
         assert "help section" not in restrictions
 
     def test_restrictions_leave_page_intact(self, soups):
-        """extract <dd> text while shared soup still has inner div"""
+        """extract <dd> text; soup keeps div"""
         fetch_skills(soups["1500502"])
         assert soups["1500502"].select_one("div.caution_color_1") is not None
 
@@ -124,7 +124,6 @@ class TestReforge:
                 "reforge info": {
                     "before": "sea dragon's sword",
                     "before_id": "1014667",
-                    "after": "-",
                 }
             }
         ]
@@ -132,7 +131,7 @@ class TestReforge:
 
     def test_absent_slot_is_a_dash(self, soups):
         entries, _ = fetch_reforge(soups["1015157"])
-        assert entries[0]["reforge info"] == {"before": "-", "after": "-"}
+        assert entries[0]["reforge info"] == {"before": "-"}
 
     def test_materials_are_counted(self, soups):
         _, materials = fetch_reforge(soups["4434015"])
@@ -140,12 +139,12 @@ class TestReforge:
 
 
 class TestSpecialEvolution:
-    def test_sides_arrive_as_separate_entries(self, soups):
-        """parser has to merge these back into one Awakening"""
+    def test_after_slots_are_registered_but_not_read(self, soups):
+        """after dl still yields its entry"""
         entries, _ = fetch_sp_evo(soups["1015157"])
         assert [set(e["awakening info"]) for e in entries] == [
             {"before", "before_id"},
-            {"after", "after_id"},
+            set(),
         ]
 
     def test_material_blocks(self, soups):

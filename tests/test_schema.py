@@ -86,7 +86,7 @@ def add_elements(conn):
 
 
 def full_db() -> sqlite3.Connection:
-    """one row in every table. exercises every FK target and every aggregate predicate"""
+    """one row in every table"""
     conn = connect()
     conn.execute("INSERT INTO element VALUES ('fire'), ('water')")
     conn.execute("INSERT INTO element_relation VALUES ('fire', 'water', 'weakness')")
@@ -150,12 +150,12 @@ def full_db() -> sqlite3.Connection:
         [("1001", "atk", "initial", 100), ("1003", "stats1", "max", 200)],
     )
     conn.executemany(
-        "INSERT INTO evolution_edge (kind, from_uid, to_uid, evidence, from_name, to_name) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO evolution_edge (kind, from_uid, to_uid, from_name, to_name) "
+        "VALUES (?, ?, ?, ?, ?)",
         [
-            ("reforge", "1001", "9999", "both", "gear 1001", "ghost gear"),
-            ("awakening", "1002", "1001", "after", "gear 1002", "gear 1001"),
-            ("reforge", "9998", "1003", "before", "older ghost", "gear 1003"),
+            ("reforge", "1001", "9999", "gear 1001", "ghost gear"),
+            ("awakening", "1002", "1001", "gear 1002", "gear 1001"),
+            ("reforge", "9998", "1003", "older ghost", "gear 1003"),
         ],
     )
     conn.executemany(
@@ -293,7 +293,7 @@ def test_schema_sections_splits_given_text():
 
 
 def test_snapshot_shape():
-    """game + ledger alone apply to fresh db (FK clean)"""
+    """game and ledger alone apply cleanly"""
     sections = schema_sections()
     conn = connect(sections["game"] + "\n" + sections["ledger"])
     try:
@@ -388,16 +388,9 @@ CHECKS = [
         ["prefix", "suffix", "infix"],
     ),
     (
-        "K6 evolution_edge.evidence",
-        "INSERT INTO evolution_edge (kind, from_uid, to_uid, evidence, from_name, to_name) "
-        "VALUES ('reforge', :k, 'y', :v, 'a', 'b')",
-        "neither",
-        ["before", "after", "both"],
-    ),
-    (
         "K7 evolution_edge.kind",
-        "INSERT INTO evolution_edge (kind, from_uid, to_uid, evidence, from_name, to_name) "
-        "VALUES (:v, :k, 'y', 'both', 'a', 'b')",
+        "INSERT INTO evolution_edge (kind, from_uid, to_uid, from_name, to_name) "
+        "VALUES (:v, :k, 'y', 'a', 'b')",
         "fusion",
         list(EVO_KINDS),
     ),
@@ -465,7 +458,7 @@ def test_icon_kind_vocab_accepted(db, kind):
 
 
 def test_proc_family_element_size_is_not_unique(base):
-    """two procs may share (family, element, size)"""
+    """procs may share (family, element, size)"""
     for n, raw in ((1, "water dragon slayer xl"), (2, "water dragon slayer xl (variant)")):
         base.execute(
             "INSERT INTO proc (proc_id, family_id, element_id, size, raw_name) VALUES (?, 1, 'water', 'xl', ?)",
@@ -478,14 +471,19 @@ def test_proc_family_element_size_is_not_unique(base):
     assert unique["ix_proc_family_element_size"] == 0
 
 
+def test_evolution_edge_columns(db):
+    assert [r[1] for r in db.execute("PRAGMA table_info(evolution_edge)")] == [
+        "kind", "from_uid", "to_uid", "from_name", "to_name"]
+
+
 def test_evo_names_not_null(db):
     for column in ("from_name", "to_name"):
         values = {"from_name": "'a'", "to_name": "'b'"}
         values[column] = "NULL"
         with pytest.raises(sqlite3.IntegrityError):
             db.execute(
-                "INSERT INTO evolution_edge (kind, from_uid, to_uid, evidence, from_name, to_name) "
-                f"VALUES ('reforge', 'x', 'y', 'both', {values['from_name']}, {values['to_name']})"
+                "INSERT INTO evolution_edge (kind, from_uid, to_uid, from_name, to_name) "
+                f"VALUES ('reforge', 'x', 'y', {values['from_name']}, {values['to_name']})"
             )
 
 
@@ -494,8 +492,8 @@ def test_evo_edge_and_mats_have_no_equipment_fk(db):
         targets = {r[2] for r in db.execute(f"PRAGMA foreign_key_list({table})")}
         assert "equipment" not in targets, table
     db.execute(
-        "INSERT INTO evolution_edge (kind, from_uid, to_uid, evidence, from_name, to_name) "
-        "VALUES ('reforge', 'nobody', 'nobody2', 'both', 'a', 'b')"
+        "INSERT INTO evolution_edge (kind, from_uid, to_uid, from_name, to_name) "
+        "VALUES ('reforge', 'nobody', 'nobody2', 'a', 'b')"
     )
     assert db.execute("PRAGMA foreign_key_check").fetchall() == []
 
@@ -730,7 +728,7 @@ EDGE_TABLES = {"evolution_edge", "evolution_material"}
 
 
 def coverage() -> dict[tuple[str, str | None], list[str]]:
-    """(table, owner_kind) -> entity types that own it, one entry per root or child"""
+    """(table, owner_kind) to owning entity types"""
     found: dict[tuple[str, str | None], list[str]] = {}
     for e in ENTITIES:
         found.setdefault((e.root_table, None), []).append(e.entity_type)
@@ -813,7 +811,7 @@ def test_predicates_are_valid_sql(db):
 
 
 def test_child_where_and_root_where_execute(full):
-    """? placeholder renderings run in SQLite for child of every entity"""
+    """placeholder renderings run per entity child"""
     for e in ENTITIES:
         for key in keys_of(full, e):
             sql, params = entities.root_where(e, key)

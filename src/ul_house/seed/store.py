@@ -1,9 +1,4 @@
-"""seed.sqlite
-    - bytes + validators
-    - list rows discovery saw
-    - lineage links read off detail pages
-    - autocommit mode > transaction() groups writes while crawl commits a page with frontier transaction
-"""
+"""seed database store"""
 from __future__ import annotations 
 
 import hashlib
@@ -29,7 +24,7 @@ RUN_COUNTERS = ("pages_discovered", "pages_fetched", "pages_changed", "pages_fai
 
 
 class SeedSchemaError(RuntimeError):
-    """file is a seed from before the stamped schema; it cannot be opened, only rebuilt"""
+    """seed predates the stamped schema"""
 
 
 def utc_now() -> str:
@@ -42,7 +37,7 @@ class Validators:
     last_modified: str | None
 
     def headers(self) -> dict[str, str]:
-        """conditional-request headers (empty if no validators)"""
+        """conditional-request headers"""
         headers = {}
         if self.etag:
             headers["If-None-Match"] = self.etag
@@ -65,7 +60,6 @@ class ListRowLike(Protocol):
 class LinkLike(Protocol):
     source_id: str
     kind: str
-    side: str
     target_id: str
     target_name: str
 
@@ -101,12 +95,16 @@ class Store:
 
     @staticmethod
     def _check_schema_version(conn: sqlite3.Connection, path: str | Path) -> None:
-        """rebuild an old seed (old schema)"""
+        """Rebuild an old seed."""
         tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
         if "page" in tables:
             columns = {row[1] for row in conn.execute("PRAGMA table_info(page)")}
             if "run_id" not in columns:
                 raise SeedSchemaError(f"{path}: seed predates schema {SCHEMA_VERSION}; rebuild it")
+        if "evo_link" in tables:
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(evo_link)")}
+            if "side" in columns:
+                raise SeedSchemaError(f"{path}: seed predates schema {SCHEMA_VERSION} (evo_link.side); rebuild it")
         if "meta" in tables:
             row = conn.execute("SELECT value FROM meta WHERE key = 'seed.schema_version'").fetchone()
             if row is not None and row[0] != str(SCHEMA_VERSION):
@@ -158,11 +156,7 @@ class Store:
 
     def record_response(self, url: str, kind: str, status: int, body: bytes | None = None, etag: str | None = None, last_modified: str | None = None,
                         content_type: str | None = None, item_id: str | None = None, run_id: int | None = None) -> bool:
-        """returns True when the stored html changed
-            - 200 > replaces html
-            - 304 > keeps it
-            - anything else > records status and keep html that was already there
-        """
+        """record response; True if html changed"""
         if kind not in PAGE_KINDS:
             raise ValueError(f"unknown page kind {kind!r}")
         now = self.clock()
@@ -194,7 +188,7 @@ class Store:
         if status == 304:
             if old is None or old["html_sha256"] is None:
                 raise ValueError(f"304 for {url} but no stored html to keep")
-            # 304 may refresh validators (unchanged not cleared)
+            # 304 may refresh validators
             self.conn.execute(
                 "UPDATE page SET status = 304, fetched_at = ?, etag = ?, last_modified = ?, run_id = ? WHERE url = ?",
                 (now, etag or old["etag"], last_modified or old["last_modified"], run_id, url),
@@ -212,7 +206,7 @@ class Store:
         return False
 
     def validators(self, url: str) -> Validators | None:
-        """fall back, None unless html is stored"""
+        """stored html, else None"""
         row = self.conn.execute(
             "SELECT etag, last_modified FROM page WHERE url = ? AND html IS NOT NULL", (url,)
         ).fetchone()
@@ -253,12 +247,12 @@ class Store:
         return self.conn.execute("SELECT * FROM listing ORDER BY item_id").fetchall()
 
     def put_links(self, source_id: str, links: Iterable[LinkLike]) -> None:
-        """replace everything a page said about its lineage"""
+        """replace a page's lineage links"""
         with self.transaction():
             self.conn.execute("DELETE FROM evo_link WHERE source_id = ?", (source_id,))
             self.conn.executemany(
-                "INSERT INTO evo_link (source_id, kind, side, target_id, target_name) VALUES (?, ?, ?, ?, ?)",
-                [(source_id, l.kind, l.side, l.target_id, l.target_name) for l in links],
+                "INSERT INTO evo_link (source_id, kind, target_id, target_name) VALUES (?, ?, ?, ?)",
+                [(source_id, l.kind, l.target_id, l.target_name) for l in links],
             )
 
     def links_from(self, source_ids: Iterable[str]) -> list[sqlite3.Row]:
@@ -267,16 +261,7 @@ class Store:
             return []
         marks = ",".join("?" * len(ids))
         return self.conn.execute(
-            f"SELECT * FROM evo_link WHERE source_id IN ({marks}) ORDER BY source_id, kind, side", ids
-        ).fetchall()
-
-    def links_to(self, target_ids: Iterable[str]) -> list[sqlite3.Row]:
-        ids = list(target_ids)
-        if not ids:
-            return []
-        marks = ",".join("?" * len(ids))
-        return self.conn.execute(
-            f"SELECT * FROM evo_link WHERE target_id IN ({marks}) ORDER BY target_id, kind, source_id", ids
+            f"SELECT * FROM evo_link WHERE source_id IN ({marks}) ORDER BY source_id, kind", ids
         ).fetchall()
 
     def get_meta(self, key: str, default: str | None = None) -> str | None:
@@ -364,7 +349,7 @@ class Store:
     def record_asset(self, url: str, status: int, body: bytes | None = None, etag: str | None = None,
                      last_modified: str | None = None, content_type: str | None = None,
                      run_id: int | None = None) -> bool:
-        """True when stored bytes changed. 200 replaces them, 304 keeps them"""
+        """True when stored bytes changed"""
         old = self.conn.execute("SELECT sha256, etag, last_modified, changed_at, changed_run_id FROM asset WHERE url = ?", (url,)).fetchone()
         if old is None:
             raise ValueError(f"no asset target {url}")
@@ -397,7 +382,7 @@ class Store:
         raise ValueError(f"record_asset takes 200 or 304, not {status}; use record_asset_status")
 
     def record_asset_status(self, url: str, status: int, run_id: int | None = None) -> None:
-        """response bytes not accepted, status and time only (stored bytes left untouched)"""
+        """record status and time only"""
         cursor = self.conn.execute(
             "UPDATE asset SET status = ?, fetched_at = ?, run_id = ? WHERE url = ?",
             (status, self.clock(), run_id, url),
@@ -413,7 +398,7 @@ class Store:
         return bytes(row["body"]) if row is not None and row["body"] is not None else None
 
     def asset_validators(self, url: str) -> Validators | None:
-        """None unless bytes are stored"""
+        """stored bytes, else None"""
         row = self.conn.execute(
             "SELECT etag, last_modified FROM asset WHERE url = ? AND body IS NOT NULL", (url,)
         ).fetchone()
@@ -431,7 +416,7 @@ class Store:
         ).fetchall()
 
     def put_unlisted(self, run_id: int, rows: Iterable[ReleaseRowLike]) -> None:
-        """track how many consecutive runs each new release id not on list page"""
+        """track unlisted new-release runs"""
         rows = list(rows)
         with self.transaction():
             for row in rows:

@@ -30,6 +30,7 @@ escalate = { scope = "catalog", level = "warning", min_runs = 3 }
 scopes   = { reference = "info", catalog = "warning" }
 escalate = { scope = "catalog", level = "blocker", min_count = 5, min_pct = 1.0 }
 
+# xs, s, m, l, xl, xxl
 [check.unknown_vocabulary]
 scopes   = { reference = "info", catalog = "warning" }
 escalate = { scope = "catalog", level = "blocker", min_count = 5, min_pct = 1.0 }

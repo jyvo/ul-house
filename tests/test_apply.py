@@ -24,7 +24,7 @@ UserTables = pf.USER_TABLES
 
 @pytest.fixture
 def db(tmp_path):
-    """factory: db(revision) -> client connection loaded with that revision and user data"""
+    """factory: client database loaded with revision"""
     opened = []
 
     def make(revision, name=None, **kw):
@@ -110,7 +110,7 @@ def test_update_replaces_the_children_and_keeps_the_row(db):
 
 
 def test_a_shrinking_child_set_loses_its_old_rows(db):
-    """an UPSERT replaces the aggregate: a child row absent from the payload is deleted"""
+    """upsert deletes children absent from payload"""
     conn = db(1)
     package, sha = package_for(1, 2, lambda d: op_of(d, "UPSERT", "equipment", pf.Uid.W1)["data"].update(
         stat=[r for r in op_of(d, "UPSERT", "equipment", pf.Uid.W1)["data"]["stat"] if r["tier"] == "initial"]))
@@ -143,7 +143,7 @@ def test_alias_repoints_the_uid_and_only_the_uid(db):
     after = pf.dump(conn, ["inventory", "saved_ref"], rowid=True)
 
     def repoint(row):
-        # inventory: (rowid, inv_id, profile_id, uid, ...) / saved_ref: (rowid, profile_id, uid, ...)
+        # inventory and saved_ref column layouts
         return tuple(pf.Uid.G2 if v == pf.Uid.G1 else v for v in row)
 
     for table in ("inventory", "saved_ref"):
@@ -157,7 +157,7 @@ def test_alias_repoints_the_uid_and_only_the_uid(db):
 
 
 def test_the_old_saved_ref_dropped_when_new_uid_already_saved(db):
-    """on ALIAS old -> new a profile that saved both keeps only the new one"""
+    """alias re-point keeps only new row"""
     saved = ((1, pf.Uid.G1), (1, pf.Uid.G2), (1, pf.Uid.W1), (2, pf.Uid.G1))
     conn = db(3, user=False)
     pf.seed_user_data(conn, saved=saved)
@@ -315,7 +315,7 @@ def test_an_unsupported_dataset_schema_is_refused(db):
 
 
 def test_apply_twice_gives_the_same_database(db):
-    """A: the package once, B: the ops twice in one transaction, C: the package, then the ops again"""
+    """package, ops twice, package then ops"""
     package, sha = package_for(1, 4)
     a, b, c = db(1), db(1), db(1)
     apply.apply_package(a, package, package_sha256=sha, app_version="t")
@@ -328,7 +328,7 @@ def test_apply_twice_gives_the_same_database(db):
     tables = pf.GAME_TABLES + pf.USER_TABLES
     assert pf.dump(a, tables) == pf.dump(b, tables) == pf.dump(c, tables)
     assert pf.dump(a, pf.GAME_TABLES) == pf.expected_dump(4)
-    # the revision check stops a second apply_package before it starts
+    # revision check stops second apply
     with pytest.raises(RevisionMismatch):
         apply.apply_package(a, package, package_sha256=sha, app_version="t")
     assert a.execute("SELECT count(*) FROM sync_history WHERE revision = 4").fetchone()[0] == 1
@@ -443,7 +443,7 @@ def test_malformed_payloads_are_package_errors_and_roll_back(db, what):
             data["effect_link"].append({"owner_kind": "proc", "owner_id": "1", "ordinal": 1,
                                         "effect_id": pf.EFFECT_A["effect_id"]})
         elif what == "edge_not_incident":
-            data["evolution_edge"].append({"kind": "reforge", "from_uid": "11", "to_uid": "12", "evidence": "both",
+            data["evolution_edge"].append({"kind": "reforge", "from_uid": "11", "to_uid": "12",
                                            "from_name": "a", "to_name": "b"})
         elif what == "child_not_incident":
             data["stat"].append({"uid": pf.Uid.W0, "label": "def", "tier": "initial", "value": 1})
@@ -490,7 +490,7 @@ def test_a_failing_op_after_good_ones_rolls_everything_back(db):
 
 
 def write_count(tmp_path, r, n):
-    """how many INSERT/UPDATE/DELETE statements apply_package runs for r -> n (counted on a scratch copy)"""
+    """counts write statements per apply_package"""
     conn = pf.client_db_at(tmp_path / f"count-{r}-{n}.sqlite", r)
     seen = []
     conn.set_trace_callback(lambda s: seen.append(s) if s.lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE")) else None)
@@ -581,7 +581,7 @@ def arm(conn):
 
 
 def test_the_tripwire_is_armed(db):
-    """control: with the trigger in place INSERT OR REPLACE on equipment aborts and an UPSERT does not"""
+    """control: trigger aborts replace, not upsert"""
     conn = db(1)
     arm(conn)
     row = conn.execute("SELECT * FROM equipment WHERE uid = ?", (pf.Uid.W1,)).fetchone()
@@ -623,7 +623,7 @@ USER_WRITE_RE = re.compile(
 
 
 def test_only_apply_py_writes_user_tables():
-    """the alias re-point lives in apply.py, snapshot.py only calls it"""
+    """alias re-point lives in apply.py"""
     for path in sorted(SYNC_DIR.glob("*.py")):
         hits = USER_WRITE_RE.findall(path.read_text())
         if path.name == "apply.py":
@@ -657,7 +657,7 @@ def test_shared_edges_apply_in_either_order(db):
             apply.apply_ops(conn, ordered)
         results.append(pf.dump(conn, pf.GAME_TABLES))
     assert results[0] == results[1] == pf.expected_dump(2)
-    # both endpoints' payloads carry the shared edge and material rows
+    # both payloads carry shared rows
     doc = pf.make_package(1, 2)
     for uid in (pf.Uid.W1, pf.Uid.W2):
         data = op_of(doc, "UPSERT", "equipment", uid)["data"]
@@ -675,7 +675,7 @@ def test_an_edge_to_an_unshipped_uid_survives_its_endpoint_being_upserted(db):
     assert conn.execute("SELECT from_name, to_name FROM evolution_edge WHERE to_uid = ?", (pf.Uid.GHOST,)).fetchone() == (
         "Sword", "Ghost Blade")
     assert conn.execute("SELECT count(*) FROM evolution_material WHERE to_uid = ?", (pf.Uid.GHOST,)).fetchone()[0] == 1
-    # an upsert that drops the edge from its (only shipped) endpoint's payload removes it
+    # upsert dropping edge removes it
     package, sha = package_for(2, 3, lambda d: d["ops"].append(
         {"op": "UPSERT", "entity": "equipment", "key": pf.Uid.W1, "rev": 3, "data": dict(
             aggregate_without_ghost(pf.aggregate_at(3, "equipment", pf.Uid.W1)))}))

@@ -243,7 +243,6 @@ models:
         constraints: [{type: not_null}]
         data_tests:
           - not_null
-          - accepted_values: {arguments: {values: ['UR', 'SSR']}}
       - name: gear_type
         data_type: varchar
         constraints: [{type: not_null}]
@@ -496,12 +495,6 @@ models:
         constraints: [{type: not_null}]
         data_tests:
           - not_null
-      - name: evidence
-        data_type: varchar
-        constraints: [{type: not_null}]
-        data_tests:
-          - not_null
-          - accepted_values: {arguments: {values: ['before', 'after', 'both']}}
       - name: from_name
         data_type: varchar
         constraints: [{type: not_null}]

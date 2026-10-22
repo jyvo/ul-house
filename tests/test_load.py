@@ -1,4 +1,4 @@
-"""build/load.py: seed + Records -> DuckDB raw (no dbt)"""
+"""build/load.py: seed and Records into DuckDB"""
 from __future__ import annotations
 
 import ast
@@ -18,7 +18,8 @@ import pytest
 duckdb = pytest.importorskip("duckdb")
 
 from catalog_fixtures import CATALOG
-from fetch_fixtures import UIDS, cached_path
+from fetch_fixtures import UIDS
+from mini_seed import served_html
 from ul_house import rows as R
 from ul_house.build import load
 from ul_house.parse import PARSER_VERSION
@@ -29,8 +30,7 @@ BUILD = ROOT / "src" / "ul_house" / "build"
 STARTED = "2026-10-05T00:00:00Z"
 RUN_ID = "t20261005T000000Z-abc123"
 
-SEED_COUNTS = {"page": 21, "listing": 10, "frontier": 14, "evo_link": 10, "asset": 8,
-               "crawl_run": 1, "unlisted_release": 1}
+SEED_COUNTS = {"page": 21, "listing": 10, "frontier": 14, "evo_link": 7, "asset": 8, "crawl_run": 1, "unlisted_release": 1}
 
 
 def empty_records(**tables) -> R.Records:
@@ -370,15 +370,15 @@ class TestReadAndParse:
         for item_id, sha, html in pages:
             assert isinstance(html, bytes)
             assert hashlib.sha256(html).hexdigest() == sha
-            assert html == cached_path(item_id).read_bytes()
+            assert html == served_html(item_id)
 
     def test_pages_without_bytes_are_not_read(self, seed_copy):
         assert len(list(load.read_pages(seed_copy))) == 8
 
     def test_parse_seed_equals_rows_of_the_cached_pages(self, seed_copy):
         records = load.parse_seed(seed_copy, run_id=RUN_ID)
-        pages = [R.parse_page(uid, hashlib.sha256(cached_path(uid).read_bytes()).hexdigest(),
-                              cached_path(uid).read_bytes()) for uid in sorted(UIDS)]
+        pages = [R.parse_page(uid, hashlib.sha256(served_html(uid)).hexdigest(),
+                              served_html(uid)) for uid in sorted(UIDS)]
         assert records == R.rows(pages, run_id=RUN_ID, parser_version=PARSER_VERSION)
         assert records.run_id == RUN_ID and records.parser_version == PARSER_VERSION
         assert records.parse_errors == []

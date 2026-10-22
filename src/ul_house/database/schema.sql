@@ -172,7 +172,6 @@ CREATE TABLE IF NOT EXISTS evolution_edge (
     kind      TEXT NOT NULL CHECK (kind IN ('reforge', 'awakening', 'enlightening')),
     from_uid  TEXT NOT NULL,
     to_uid    TEXT NOT NULL,
-    evidence  TEXT NOT NULL CHECK (evidence IN ('before', 'after', 'both')),
     from_name TEXT NOT NULL,
     to_name   TEXT NOT NULL,
     PRIMARY KEY (kind, from_uid, to_uid)

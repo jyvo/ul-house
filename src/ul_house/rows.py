@@ -23,10 +23,10 @@ _MODEL_CLASS: dict[type, str] = {
 
 @dataclass(frozen=True, slots=True)
 class ParsedPage:
-    source_id: str                      # seed page.item_id = the equipment uid
-    source_hash: str                    # seed page.html_sha256
+    source_id: str                      # equipment uid
+    source_hash: str                    # page html hash
     model: Weapon | DefensiveGear | Monster | None
-    error: str | None = None            # set iff model is None
+    error: str | None = None            # set iff no model
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,7 +38,7 @@ class StgEquipment:
     rarity: str
     gear_type: str
     cost: int
-    element_id: str                     # ELEMENT["none"].id when the model has no element
+    element_id: str                     # none id when no element
     max_level: int
 
 
@@ -125,8 +125,8 @@ class StgPotentialLevel:
 @dataclass(frozen=True, slots=True)
 class StgSkillEffect:
     source_uid: str
-    owner_kind: str                     # proc | weapon_ability | monster_skill | passive_skill
-    owner_ordinal: int                  # the monster skill's ordinal (else 1)
+    owner_kind: str                     # owner kind
+    owner_ordinal: int                  # monster skill ordinal, else 1
     ordinal: int
     target: str | None
     description: str
@@ -138,8 +138,6 @@ class StgEvolution:
     kind: str                           # reforge | awakening | enlightening
     before_uid: str | None
     before_name: str | None
-    after_uid: str | None
-    after_name: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -262,14 +260,14 @@ class Records:
     parse_errors: list[ParseError]
 
     def tables(self) -> dict[str, list]:
-        """{table: records} in STAGING_TABLES order"""
+        """records per table, staging order"""
         out: dict[str, list] = {name: getattr(self, name) for name in STAGING_TABLES}
         out["parse_error"] = self.parse_errors
         return out
 
 
 def columns(record_type: type) -> tuple[tuple[str, str, bool], ...]:
-    """(column, 'TEXT' | 'INTEGER', nullable) per field"""
+    """column spec per field"""
     hints = typing.get_type_hints(record_type)
     out = []
     for field in dataclasses.fields(record_type):
@@ -292,7 +290,7 @@ def columns(record_type: type) -> tuple[tuple[str, str, bool], ...]:
 
 
 def parse_page(source_id: str, source_hash: str, html: str | bytes) -> ParsedPage:
-    """parse.parse_html(html, source_id)"""
+    """parse one page's html"""
     try:
         model = parse_html(html, source_id)
     except Exception as e:  # noqa: BLE001 -- every failure is a parse_error row
@@ -301,12 +299,11 @@ def parse_page(source_id: str, source_hash: str, html: str | bytes) -> ParsedPag
 
 
 class _PageRejected(Exception):
-    """a page whose records must not be staged (the message is the parse_error text)"""
+    """page whose records are not staged"""
 
 
 def _effect_hash(*args) -> str:
-    # a separator in an input is reported as ControlSeparator by validation: every effect_hash
-    # input is also a TEXT column of the same page's records
+    # separators are caught by validation
     try:
         return ids.effect_hash(*args)
     except ValueError:
@@ -365,14 +362,12 @@ def _proc(uid: str, skill: Proc | None, buffer: dict[str, list]) -> None:
 def _evolution(uid: str, kind: str, evolution: GearEvolution | None, buffer: dict[str, list]) -> None:
     if evolution is None:
         return
-    before, after = evolution.before, evolution.after
+    before = evolution.before
     buffer["stg_evolution"].append(StgEvolution(
         source_uid=uid,
         kind=kind,
         before_uid=before.uid if before is not None else None,
         before_name=before.name if before is not None else None,
-        after_uid=after.uid if after is not None else None,
-        after_name=after.name if after is not None else None,
     ))
     if isinstance(evolution, Reforge):
         materials = [("gear", m.gear, m.quantity) for m in evolution.material or ()]
@@ -386,7 +381,7 @@ def _evolution(uid: str, kind: str, evolution: GearEvolution | None, buffer: dic
 
 
 def _page_records(page: ParsedPage) -> dict[str, list]:
-    """every record of one page; _PageRejected if the page must not be staged"""
+    """every record of one page"""
     model = page.model
     uid = page.source_id
     model_class = _MODEL_CLASS.get(type(model))

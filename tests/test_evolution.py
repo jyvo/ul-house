@@ -40,7 +40,7 @@ def done(frontier, entry):
 
 
 def links(store, source, *specs):
-    store.put_links(source, [EvoLink(source, kind, side, target, name) for kind, side, target, name in specs])
+    store.put_links(source, [EvoLink(source, kind, target, name) for kind, target, name in specs])
 
 
 def kept(item_id):
@@ -54,8 +54,8 @@ def listed(store, item_id, name="Item", cost=50, rarity="UR"):
 class TestTheWorkedChain:
     def seed(self, store, frontier):
         done(frontier, kept("1713802"))
-        links(store, "1713802", ("awakening", "before", "1035607", "Middle"))
-        links(store, "1035607", ("awakening", "before", "1035144", "First"))
+        links(store, "1713802", ("awakening", "1035607", "Middle"))
+        links(store, "1035607", ("awakening", "1035144", "First"))
 
     def test_depth_one_reaches_one_hop(self, store, frontier):
         self.seed(store, frontier)
@@ -85,94 +85,82 @@ class TestTheWorkedChain:
 class TestPolicyAndFollow:
     def test_shipped_per_chain_policy(self, store, frontier):
         done(frontier, kept("A"))
-        links(store, "A", ("reforge", "before", "R", "pre-reforge"), ("awakening", "before", "W", "pre-awake"))
+        links(store, "A", ("reforge", "R", "pre-reforge"), ("awakening", "W", "pre-awake"))
         expand(store, frontier, load_scope(), 1)
         assert frontier.get("R").entry_kind == "catalog"      # reforge = { policy = "catalog" }
         assert frontier.get("W").entry_kind == "reference"
 
     def test_per_chain_depth(self, store, frontier):
-        """enlightening = { depth = 2 }; the others stop at 1"""
+        """Only enlightening goes deeper than one."""
         env = load_scope()
         done(frontier, kept("A"))
-        links(store, "A", ("enlightening", "before", "E1", "e1"), ("reforge", "before", "R1", "r1"))
+        links(store, "A", ("enlightening", "E1", "e1"), ("reforge", "R1", "r1"))
         expand(store, frontier, env, 1)
         for item_id in ("E1", "R1"):
             frontier.claim_next()
             frontier.mark_done(item_id)
-        links(store, "E1", ("enlightening", "before", "E2", "e2"))
-        links(store, "R1", ("reforge", "before", "R2", "r2"))
+        links(store, "E1", ("enlightening", "E2", "e2"))
+        links(store, "R1", ("reforge", "R2", "r2"))
         expand(store, frontier, env, 2)
         assert frontier.get("E2") is not None
         assert frontier.get("R2") is None
 
     def test_exclude_policy(self, store, frontier):
         done(frontier, kept("A"))
-        links(store, "A", ("awakening", "before", "W", "x"))
+        links(store, "A", ("awakening", "W", "x"))
         assert expand(store, frontier, scope(per_chain=None, policy="exclude"), 1) == {"policy_exclude": 1}
         assert frontier.get("W") is None
 
     def test_unfollowed_kinds_ignored(self, store, frontier):
         done(frontier, kept("A"))
-        links(store, "A", ("awakening", "before", "W", "x"))
+        links(store, "A", ("awakening", "W", "x"))
         assert expand(store, frontier, scope(per_chain=None, follow=["reforge"]), 1) == {}
 
     def test_depth_zero_disables(self, store, frontier):
         done(frontier, kept("A"))
-        links(store, "A", ("awakening", "before", "W", "x"))
+        links(store, "A", ("awakening", "W", "x"))
         with pytest.warns(UserWarning):
             env = scope(per_chain=None, depth=0)
         assert expand(store, frontier, env, 1) == {}
 
 
 class TestDirection:
-    def seed(self, store, frontier):
+    def test_only_predecessors_are_walked(self, store, frontier):
         done(frontier, kept("B"))
-        links(store, "B", ("reforge", "before", "A", "a"), ("reforge", "after", "C", "c"))
-        links(store, "D", ("reforge", "before", "B", "b"))    # D names B as predecessor; B never names D
-
-    def reached(self, store, frontier, direction):
-        self.seed(store, frontier)
-        expand(store, frontier, scope(direction=direction), 1)
-        return {e for e in "ACD" if frontier.get(e) is not None}
-
-    def test_predecessors(self, store, frontier):
-        assert self.reached(store, frontier, "predecessors") == {"A"}
-
-    def test_successors_include_inverted_before_edges(self, store, frontier):
-        assert self.reached(store, frontier, "successors") == {"C", "D"}
-
-    def test_both(self, store, frontier):
-        assert self.reached(store, frontier, "both") == {"A", "C", "D"}
+        links(store, "B", ("reforge", "A", "a"))
+        links(store, "D", ("reforge", "B", "b"))      # only D names B
+        expand(store, frontier, scope(), 1)
+        assert {e for e in "ACD" if frontier.get(e) is not None} == {"A"}
 
 
 class TestFilters:
     def test_name_exclusion_wins_even_via_chain(self, store, frontier):
         done(frontier, kept("A"))
-        links(store, "A", ("awakening", "before", "N", "[Awakening Ninoyu] Charm"))
+        links(store, "A", ("awakening", "N", "[Awakening Ninoyu] Charm"))
         assert expand(store, frontier, load_scope(), 1) == {"excluded_name": 1}
 
     def test_listing_name_preferred(self, store, frontier):
         listed(store, "N", name="Awakening Ninoyu Charm")
         done(frontier, kept("A"))
-        links(store, "A", ("awakening", "before", "N", "some other label"))
+        links(store, "A", ("awakening", "N", "some other label"))
         assert expand(store, frontier, load_scope(), 1) == {"excluded_name": 1}
 
     def test_override_filters_true_ignores_cost(self, store, frontier):
         listed(store, "R", cost=10, rarity="SSR")
         done(frontier, kept("A"))
-        links(store, "A", ("reforge", "before", "R", "r"))
+        links(store, "A", ("reforge", "R", "r"))
         expand(store, frontier, load_scope(), 1)
         assert frontier.get("R").entry_kind == "catalog"
 
     def test_override_filters_false_applies_select(self, store, frontier):
         listed(store, "R", cost=10, rarity="SSR")
         done(frontier, kept("A"))
-        links(store, "A", ("reforge", "before", "R", "r"))
+        links(store, "A", ("reforge", "R", "r"))
         assert expand(store, frontier, scope(override_filters=False), 1) == {"filtered": 1}
 
     def test_override_filters_false_unlisted_reference_at_most(self, store, frontier):
         done(frontier, kept("A"))
-        links(store, "A", ("reforge", "before", "U", "unlisted"))
+        links(store, "A", ("reforge", "U", "unlisted"))
         expand(store, frontier, scope(override_filters=False), 1)
         assert frontier.get("U").entry_kind == "reference"
 
@@ -181,15 +169,15 @@ class TestFrontierInteraction:
     def test_reaching_kept_item_never_downgrades_it(self, store, frontier):
         done(frontier, kept("A"))
         frontier.enqueue(kept("B"))
-        links(store, "A", ("awakening", "before", "B", "b"))
+        links(store, "A", ("awakening", "B", "b"))
         assert expand(store, frontier, load_scope(), 1) == {"kept": 1}
         assert frontier.get("B") == kept("B")
 
     def test_expansion_deterministic(self, store, frontier):
         done(frontier, kept("A"))
         done(frontier, kept("B"))
-        links(store, "A", ("awakening", "before", "X", "x"))
-        links(store, "B", ("awakening", "before", "X", "x"))
+        links(store, "A", ("awakening", "X", "x"))
+        links(store, "B", ("awakening", "X", "x"))
         expand(store, frontier, load_scope(), 1)
         assert frontier.get("X").parent_id == "A"
 
@@ -210,7 +198,7 @@ class TestRunAware:
         frontier.claim_next(2)
         frontier.mark_done("A")
         frontier.enqueue(Entry("T", "list", "catalog", "cost_band"), run_id=1)
-        links(store, "A", ("reforge", "before", "T", "Old"))
+        links(store, "A", ("reforge", "T", "Old"))
         out = expand(store, frontier, scope(), 1, run_id=2)
         assert out["redecided"] == 1
         assert frontier.decided_run("T") == 2
@@ -221,13 +209,13 @@ class TestRunAware:
         frontier.enqueue(kept("A"), run_id=1)
         frontier.claim_next(1)
         frontier.mark_done("A")
-        links(store, "A", ("reforge", "before", "T", "Old"))
+        links(store, "A", ("reforge", "T", "Old"))
         assert expand(store, frontier, scope(), 1, run_id=2) == {}
         assert frontier.get("T") is None
         assert expand(store, frontier, scope(), 1, run_id=1)["new"] == 1
 
     def test_expand_without_run_is_unchanged(self, store, frontier):
         done(frontier, kept("A"))
-        links(store, "A", ("reforge", "before", "T", "Old"))
+        links(store, "A", ("reforge", "T", "Old"))
         assert expand(store, frontier, scope(), 1)["new"] == 1
         assert frontier.decided_run("T") is None

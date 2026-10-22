@@ -55,7 +55,7 @@ class FixturePub:
 
 
 def canonical_json(obj: object) -> bytes:
-    """canonical form: sorted keys, compact separators, ensure_ascii (default), UTF-8."""
+    """canonical JSON form"""
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
@@ -151,7 +151,7 @@ def build_package(icon_sha: str, png_size: int, delta_pack: str, delta_pack_sha:
                     "evolution_edge": [
                         {
                             "kind": "reforge", "from_uid": "1000001", "to_uid": "1000002",
-                            "evidence": "both", "from_name": "Fixture Blade", "to_name": "Fixture Blade+",
+                            "from_name": "Fixture Blade", "to_name": "Fixture Blade+",
                         }
                     ],
                     "evolution_chain": [],

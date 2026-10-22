@@ -16,12 +16,14 @@ from local_server import LocalServer, Reply
 from mini_seed import (
     MINI_CLOCK,
     MINI_ITEMS,
+    TWO_AFTER_UID,
     FakeWiki,
     WikiItem,
     build_mini_seed,
     fake_png,
     icon_path,
     mini_scope,
+    served_html,
 )
 from ul_house.config import LIST_SOURCES, NEW_RELEASE_PATH, detail_path
 from ul_house.crawl.run import CrawlFailed, Lineage, ResumeRefused, crawl, main, shard_of, summary
@@ -36,7 +38,7 @@ LIST_PATHS = [path for path, _, _ in LIST_SOURCES]
 
 # helpers
 def scope_with(**tables) -> Scope:
-    """the shipped scope with some table keys replaced: scope_with(revalidate={"cycle_days": 1})"""
+    """shipped scope with some keys replaced"""
     data = load_scope().to_mapping()
     for table, values in tables.items():
         data[table].update(values)
@@ -48,7 +50,7 @@ def item(uid, cost=50, rarity="UR", **kw) -> WikiItem:
 
 
 def sync_releases(wiki: FakeWiki, *unlisted: tuple[str, str]) -> FakeWiki:
-    """new release page shows every listed item + ids"""
+    """New release page shows listed items."""
     wiki.releases = [(i.item_id, i.name) for i in wiki.items.values() if i.listed] + list(unlisted)
     return wiki
 
@@ -58,7 +60,7 @@ def wiki_of(*items: WikiItem, unlisted=()) -> FakeWiki:
 
 
 def uids_in_shards(cycle_days: int, shards) -> list[str]:
-    """fresh digit-string id per requested shard (ordered)"""
+    """fresh digit-string id per shard"""
     found, taken, n = [], set(), 2000
     for shard in shards:
         while shard_of(str(n), cycle_days) != shard or str(n) in taken:
@@ -215,7 +217,7 @@ class TestFirstRun:
         assert (unlisted["item_id"], unlisted["name"], unlisted["runs"]) == (X, "Newcomer", 1)
         assert len(detail_hits(server, X)) == 0         # nothing crawled from new-release page
 
-        assert [(l["kind"], l["side"], l["target_id"]) for l in store.links_from([A])] == [("reforge", "before", R)]
+        assert [(l["kind"], l["target_id"]) for l in store.links_from([A])] == [("reforge", R)]
 
         assert meta(store) == {
             "seed.schema_version": "1",
@@ -533,6 +535,29 @@ class TestContractAndTransientFailures:
         assert len(detail_hits(server, A)) == 2             # retry_failed at start of every run
         assert frontier(store, A)["last_error"].startswith("contract:")
 
+    def test_two_after_slots_are_not_a_contract_failure(self, server, store, go):
+        wiki_of(item(A, links=(("before", "reforging", R, "Old"), ("after", "enlightening", "6301", "X1"),
+                               ("after", "enlightening", "6302", "X2"))),
+                item(R, cost=30, rarity="SSR")).install(server)
+        result = go()
+        assert result.status == "complete"
+        assert store.page(detail_path(A))["status"] == 200
+        fr = frontier(store, A)
+        assert fr["state"] == "done" and fr["last_error"] is None
+        assert store.run(1)["pages_failed"] == 0
+        assert [(l["kind"], l["target_id"]) for l in store.links_from([A])] == [("reforge", R)]
+        assert detail_hits(server, "6301") == [] and detail_hits(server, "6302") == []
+
+    def test_duplicate_before_slot_is_still_a_contract_failure(self, server, store, go):
+        wiki_of(item(A, links=(("before", "reforging", R, "Old"), ("before", "reforging", "6301", "Other"))),
+                item(R, cost=30, rarity="SSR")).install(server)
+        result = go()
+        assert result.status == "complete"
+        assert store.page(detail_path(A)) is None
+        fr = frontier(store, A)
+        assert fr["state"] == "failed"
+        assert fr["last_error"].startswith("contract:") and "two 'before reforging' slots" in fr["last_error"]
+
     def test_contract_failure_on_known_page_keeps_old_bytes(self, server, store, go):
         wiki = wiki_of(item(A))
         wiki.install(server)
@@ -669,7 +694,7 @@ class TestUnlistedStreak:
 
 @pytest.fixture
 def catalog(tmp_path):
-    """temp copy of shipped catalog with fast request interval"""
+    """temp catalog copy, fast request interval"""
     text = CATALOG_PATH.read_text()
     text, hits = re.subn(r"(request_interval\s*=\s*)[0-9.]+", r"\g<1>0.001", text)
     assert hits == 1
@@ -876,7 +901,7 @@ class TestMiniSeed:
         for uid in MINI_UIDS:
             p = pages[detail_path(uid)]
             assert (p["kind"], p["item_id"], p["status"], p["changed_run_id"]) == ("detail", uid, 200, 1)
-            assert zlib.decompress(p["html"]) == cached_path(uid).read_bytes()
+            assert zlib.decompress(p["html"]) == served_html(uid)
         for uid in MINI_GONE:
             p = pages[detail_path(uid)]
             assert (p["status"], p["html"]) == (404, None)
@@ -884,10 +909,16 @@ class TestMiniSeed:
     def test_evo_link(self, conn):
         from test_links import EXPECTED
 
-        got = self.q(conn, "SELECT source_id, kind, side, target_id FROM evo_link ORDER BY source_id, kind, side")
-        want = sorted((s, k, side, t) for s, links in EXPECTED.items() for k, side, t in links)
-        assert [(r["source_id"], r["kind"], r["side"], r["target_id"]) for r in got] == want
-        assert len(got) == 10
+        got = self.q(conn, "SELECT source_id, kind, target_id FROM evo_link ORDER BY source_id, kind")
+        want = sorted((s, k, t) for s, links in EXPECTED.items() for k, t in links)
+        assert [(r["source_id"], r["kind"], r["target_id"]) for r in got] == want
+        assert len(got) == 7
+
+    def test_two_after_page_is_done(self, conn):
+        (fr,) = self.q(conn, "SELECT * FROM frontier WHERE item_id = ?", TWO_AFTER_UID)
+        assert fr["state"] == "done" and fr["last_error"] is None
+        (p,) = self.q(conn, "SELECT html FROM page WHERE url = ?", detail_path(TWO_AFTER_UID))
+        assert zlib.decompress(p["html"]).count(b"After Enlightening") == 2
 
     def test_asset(self, conn):
         rows = {r["url"]: r for r in self.q(conn, "SELECT * FROM asset")}

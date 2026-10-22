@@ -17,19 +17,20 @@ class LinkMarkupError(ValueError):
 class EvoLink:
     source_id: str
     kind: str           # reforge | awakening | enlightening
-    side: str           # before | after
     target_id: str
     target_name: str
 
 
 def read_links(html: str, source_id: str) -> list[EvoLink]:
     soup = BeautifulSoup(html, "lxml")
-    links: dict[tuple[str, str], EvoLink] = {}
+    links: dict[str, EvoLink] = {}
     for dt in soup.select(EVO_LINK_LABEL_SELECTOR):
         label = dt.get_text(" ", strip=True).casefold()
         match = EVO_LINK_RE.match(label)
         if match is None:
             raise LinkMarkupError(f"{source_id}: unknown lineage label {label!r}")
+        if match["side"] == "after":
+            continue
         dd = dt.find_next_sibling("dd")
         if dd is None:
             raise LinkMarkupError(f"{source_id}: {label!r} has no slot")
@@ -43,13 +44,13 @@ def read_links(html: str, source_id: str) -> list[EvoLink]:
         if target.group(1) == source_id:
             raise LinkMarkupError(f"{source_id}: {label!r} links to itself")
 
-        kind, side = EVO_KIND[match["kind"]], match["side"]
-        if (kind, side) in links:
+        kind = EVO_KIND[match["kind"]]
+        if kind in links:
             raise LinkMarkupError(f"{source_id}: two {label!r} slots")
         name = dd.select_one(EVO_LINK_NAME_SELECTOR)
-        links[(kind, side)] = EvoLink(source_id, kind, side, target.group(1),
-                                      name.get_text(" ", strip=True) if name else "")
-    return sorted(links.values(), key=lambda link: (link.kind, link.side))
+        links[kind] = EvoLink(source_id, kind, target.group(1),
+                              name.get_text(" ", strip=True) if name else "")
+    return sorted(links.values(), key=lambda link: link.kind)
 
 
 def record_links(store: Store, source_id: str, html: str) -> list[EvoLink]:

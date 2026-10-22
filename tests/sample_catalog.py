@@ -112,10 +112,6 @@ XENO_WEAPON = Weapon(
             uid="1015065",
             name="xenoblade exceed",
         ),
-        after=EquipmentRef(
-            uid="1015615",
-            name="jewel bright xenoblade",
-        ),
         gear_materials=(
             GearEvoMaterial(
                 gear=EquipmentRef(
@@ -661,10 +657,6 @@ ENLIGHTENING_MON = Monster(
         )
     ),
     enlightening=Enlightening(
-        after=EquipmentRef(
-            uid="4435353",
-            name="[emperor of mystic zephyr] oberon"
-        ),
         gear_materials=(
             GearEvoMaterial(
                 quantity=2,
