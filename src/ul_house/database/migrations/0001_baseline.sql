@@ -161,8 +161,8 @@ CREATE INDEX IF NOT EXISTS ix_effect_link_effect ON effect_link(effect_id);
 
 CREATE TABLE IF NOT EXISTS stat (
     uid   TEXT    NOT NULL REFERENCES equipment(uid) ON DELETE CASCADE,
-    label TEXT    NOT NULL,
-    tier  TEXT    NOT NULL,
+    label TEXT    NOT NULL,                             -- atk matk def mdef stats1 stats2
+    tier  TEXT    NOT NULL,                             -- initial max max1 max2
     value INTEGER NOT NULL,
     PRIMARY KEY (uid, label, tier)
 );
@@ -172,7 +172,6 @@ CREATE TABLE IF NOT EXISTS evolution_edge (
     kind      TEXT NOT NULL CHECK (kind IN ('reforge', 'awakening', 'enlightening')),
     from_uid  TEXT NOT NULL,
     to_uid    TEXT NOT NULL,
-    evidence  TEXT NOT NULL CHECK (evidence IN ('before', 'after', 'both')),
     from_name TEXT NOT NULL,
     to_name   TEXT NOT NULL,
     PRIMARY KEY (kind, from_uid, to_uid)
