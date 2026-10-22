@@ -1,5 +1,4 @@
-# build scope (ci crawl)
-# settings may narrow it
+# build scope, narrowable by settings
 
 [cost]
 min      = 42
@@ -11,25 +10,25 @@ include = ["UR"]
 
 [names]
 excluded = ["awakening ninoyu"]
-bypass   = ["xeno", "sopho"]            # kept regardless of cost/rarity
+bypass   = ["xeno", "sopho"]            # kept regardless of filters
 
 [evolution]
 follow           = ["reforge", "awakening", "enlightening"]
-direction        = "predecessors"       # predecessors | successors | both
-depth            = 1                    # hops from a kept item (0 disables)
+direction        = "predecessors"       # only walk direction
+depth            = 1                    # hops from kept item
 policy           = "reference"          # exclude | reference | catalog
 override_filters = true                 # bypass cost/rarity/name rules
 
 [evolution.per_chain]                   # optional overrides
-reforge      = { policy = "catalog" }   # pre-reforge SSR forms tracked
+reforge      = { policy = "catalog" }   # track pre-reforge forms
 enlightening = { depth = 2 }
 
 [crawl]
-request_interval         = 0.15         # hard throughput ceiling: 1 / this; sequential (§3.9)
+request_interval         = 0.15         # hard throughput ceiling, sequential
 max_retries              = 4
 connect_timeout          = 5.0
 read_timeout             = 15.0         # per socket read
-request_deadline         = 30.0         # entire response including worst case time
+request_deadline         = 30.0         # whole response deadline
 
-[revalidate]                            # shards, never entirety
-cycle_days = 28                         # daily run revalidates 1/cycle_days of the catalog
+[revalidate]                            # shards, never everything
+cycle_days = 28                         # daily share of catalog

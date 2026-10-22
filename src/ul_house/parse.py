@@ -14,7 +14,7 @@ PARSER_VERSION: int = 1
 
 
 class UnparseablePage(ValueError):
-    """parse() produced no model -> no basic-data table, or no gear type"""
+    """parse produced no model"""
 
 
 def _to_int(value: str | int | None, default: int = 0) -> int:
@@ -27,14 +27,14 @@ def _to_int(value: str | int | None, default: int = 0) -> int:
 
 
 def _lines(text: str) -> list[str]:
-    """one line per effect, whether separated by newlines or by leading '-'"""
+    """split effects one per line"""
     out = []
     for line in text.split("\n"):
         for part in EFFECT_SPLIT_RE.split(line):
             part = part.strip()
             if not part:
                 continue
-            # an amplifier stands as its own effect even when it trails another
+            # amplifier is its own effect
             if (match := AMPLIFIER_RE.search(part)) and part != match.group(1):
                 out.append(part[:match.start()].strip())
                 out.append(match.group(1))
@@ -44,7 +44,7 @@ def _lines(text: str) -> list[str]:
 
 
 def _sections(text: str) -> dict[str, list[str]]:
-    """split a proc effect cell on its [section] markers; text before any marker is an effect"""
+    """split proc cell on markers"""
     out: dict[str, list[str]] = {}
     current = EFFECTS
     for line in _lines(text):
@@ -57,7 +57,7 @@ def _sections(text: str) -> dict[str, list[str]]:
 
 
 def _equip_ref(name: str | None, uid: str | None) -> EquipmentRef | None:
-    """the site renders an empty evolution slot as '-'"""
+    """empty evolution slot check"""
     if not uid or not name or name == ABSENT_VAL:
         return None
     return EquipmentRef(uid=uid, name=name)
@@ -106,7 +106,7 @@ def _parse_proc(soup: BeautifulSoup) -> Proc | None:
         condition = sections.get(ACTIVATION, [])
         rate_lines = sections.get(ACTIVATION_RATE, [])
 
-        # scaling notes show up in both [effects] and [activation rate]
+        # scaling notes appear in both
         scaling = tuple(
             ProcScaling(description=line)
             for line in (*effect_lines, *rate_lines)
@@ -163,7 +163,7 @@ def _parse_skills(soup: BeautifulSoup, skill_type: str = "skill") -> tuple[Monst
                 return PassiveSkill(name=value[0], effect=_parse_effects(value[1]))
         return None
 
-    # 'skill', or 'skill #1' / 'skill #2' when a monster carries two
+    # one or two skill headings
     return tuple(
         MonsterSkill(name=value[0], effect=_parse_effects(value[1]))
         for heading, value in fetch_skills(soup) or ()
@@ -172,7 +172,7 @@ def _parse_skills(soup: BeautifulSoup, skill_type: str = "skill") -> tuple[Monst
 
 
 def _parse_gear_materials(materials) -> tuple[GearEvoMaterial, ...] | None:
-    """reforge materials arrive as {uid: {name, quantity}}"""
+    """build reforge materials"""
     if not materials:
         return None
     return tuple(
@@ -185,20 +185,22 @@ def _parse_gear_materials(materials) -> tuple[GearEvoMaterial, ...] | None:
 def _parse_reforge(soup: BeautifulSoup) -> Reforge | None:
     entries, materials = fetch_reforge(soup)
 
-    before = after = None
+    before = None
     for entry in entries or ():
         for refs in entry.values():
-            before = before or _equip_ref(refs.get("before"), refs.get("before_id"))
-            after = after or _equip_ref(refs.get("after"), refs.get("after_id"))
+            if ref := _equip_ref(refs.get("before"), refs.get("before_id")):
+                if before is not None:
+                    raise ValueError("two 'before reforge' slots")
+                before = ref
 
     material = _parse_gear_materials(materials)
-    if before is None and after is None and material is None:
+    if before is None and material is None:
         return None
-    return Reforge(before=before, after=after, material=material)
+    return Reforge(before=before, material=material)
 
 
 def _parse_evo_materials(materials) -> tuple[tuple[GearEvoMaterial, ...] | None, tuple[ItemEvoMaterial, ...] | None]:
-    """special-evolution materials arrive as [{heading: {uid: (name, quantity)}}]"""
+    """build special-evolution materials"""
     gear_materials = item_materials = None
     for block in materials or ():
         for heading, entries in block.items():
@@ -216,7 +218,7 @@ def _parse_evo_materials(materials) -> tuple[tuple[GearEvoMaterial, ...] | None,
 
 
 def _parse_sp_evo(soup: BeautifulSoup) -> dict[str, Awakening | Enlightening | None]:
-    """awakening and enlightening share a table shape, and a page carries at most one"""
+    """build awakening or enlightening"""
     entries, materials = fetch_sp_evo(soup)
     evolutions: dict[str, Awakening | Enlightening | None] = {"awakening": None, "enlightening": None}
     if not entries:
@@ -229,16 +231,16 @@ def _parse_sp_evo(soup: BeautifulSoup) -> dict[str, Awakening | Enlightening | N
             if kind is None:
                 continue
             sides = refs.setdefault(kind, {})
-            for side in ("before", "after"):
-                if ref := _equip_ref(data.get(side), data.get(f"{side}_id")):
-                    sides[side] = ref
+            if ref := _equip_ref(data.get("before"), data.get("before_id")):
+                if "before" in sides:
+                    raise ValueError(f"two 'before {kind}' slots")
+                sides["before"] = ref
 
     gear_materials, item_materials = _parse_evo_materials(materials)
     for kind, sides in refs.items():
         model = Awakening if kind == "awakening" else Enlightening
         evolutions[kind] = model(
             before=sides.get("before"),
-            after=sides.get("after"),
             gear_materials=gear_materials,
             item_materials=item_materials,
         )

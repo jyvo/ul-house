@@ -15,8 +15,8 @@ from ul_house.config import EVO_KIND, RARITY_LIST_PAGE
 
 CATALOG_PATH = Path(__file__).with_name("catalog.toml")
 
-EVO_KINDS = tuple(EVO_KIND.values())                     # reforge, awakening, enlightening
-DIRECTIONS = ("predecessors", "successors", "both")
+EVO_KINDS = tuple(EVO_KIND.values())                     # evolution kinds
+DIRECTIONS = ("predecessors",)
 POLICIES = ("exclude", "reference", "catalog")
 RARITIES = tuple(RARITY_LIST_PAGE.values())
 TOP_LEVEL = ""
@@ -28,7 +28,7 @@ class ScopeError(ValueError):
 
 # read table
 def _table(data: Any, where: str, required: set[str], optional: set[str] = frozenset()) -> Mapping[str, Any]:
-    label = f"[{where}]" if where else "top level"      # top level of catalog.toml is not a table
+    label = f"[{where}]" if where else "top level"      # top level is not a table
     if not isinstance(data, Mapping):
         raise ScopeError(f"{label} must be a table")
     unknown = set(data) - required - optional
@@ -81,7 +81,7 @@ def _one_of(value: str, allowed: tuple[str, ...], where: str) -> str:
 class CostBand:
     min: int
     max: int
-    cosmetic: int   # 99c, placeholder cost for cosmetics + mats + non-catalog items
+    cosmetic: int   # placeholder cost (99c), non-catalog items
 
     def __post_init__(self):
         if not 0 <= self.min <= self.max < self.cosmetic:
@@ -116,7 +116,7 @@ class RarityRule:
 
 @dataclass(frozen=True)
 class NameRules:
-    """tokens matched as case-insensitive substrings of the item name (specifically for progression items and fodders)"""
+    """case-insensitive name substring tokens"""
 
     excluded: tuple[str, ...] = ()
     bypass: tuple[str, ...] = ()
@@ -259,7 +259,7 @@ class CrawlConfig:
 
 @dataclass(frozen=True)
 class RevalidateConfig:
-    cycle_days: int         # daily run revalidates 1/cycle_days of the catalog
+    cycle_days: int         # daily revalidated catalog share
 
     def __post_init__(self):
         if self.cycle_days < 1:
@@ -271,7 +271,7 @@ class RevalidateConfig:
         return cls(_is_int(t["cycle_days"], "revalidate.cycle_days"))
 
 
-# scope/baseline/specifications
+# scope
 @dataclass(frozen=True)
 class Scope:
     cost: CostBand
@@ -294,7 +294,7 @@ class Scope:
         )
 
     def to_mapping(self) -> dict[str, Any]:
-        """TOML: from_mapping(to_mapping()) == self"""
+        """TOML round-trip form"""
         evo = self.evolution
         per_chain = {
             kind: {k: v for k, v in (("policy", rule.policy), ("depth", rule.depth)) if v is not None}
@@ -316,7 +316,7 @@ class Scope:
         }
 
     def stamp(self) -> str:
-        """JSON, what seed.sqlite and app.sqlite record in meta"""
+        """JSON recorded in meta"""
         return json.dumps(self.to_mapping(), sort_keys=True, separators=(",", ":"))
 
     @classmethod
@@ -371,7 +371,7 @@ class ScopeRestriction:
 
 
 def clamp(wanted: UserSettings, scope: Scope) -> ScopeRestriction:
-    """anything outside the scope is not in app.sqlite"""
+    """items outside scope are excluded"""
     widened = []
 
     def into_band(value: int) -> int:

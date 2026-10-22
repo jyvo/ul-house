@@ -10,7 +10,7 @@ def _text(node: Tag | None) -> str:
 
 
 def _own_text(node: Tag | None, nested: str) -> str:
-    """_text() of node without nested blocks (specifically for restriction note)"""
+    """node text without nested blocks"""
     if node is None:
         return ""
     node = copy.copy(node)
@@ -20,7 +20,7 @@ def _own_text(node: Tag | None, nested: str) -> str:
 
 
 def _pairs(node: Tag, next_sib: str, **kwargs) -> tuple[str, Tag | None]:
-    """label plus the sibling holding its content; kwargs filter that sibling (bs4 - class_=)"""
+    """find label and its content sibling"""
     label = _text(node)
     content = node.find_next_sibling(next_sib, **kwargs)
     return label, content
@@ -80,15 +80,7 @@ def fetch_ability(soup: BeautifulSoup) -> dict[str, str] | None:
 
 
 def fetch_skills(soup: BeautifulSoup) -> list[tuple[str, tuple[str, str] | dict[str, str] | str]] | None:
-    """fetches proc, mon skill 1+2, passive, hidden potential, restrictions
-
-    returns : [(heading, block)] in page order, where block is
-        (skill_name, skill_effect)  for 'skill' / 'skill #n' / 'passive skill'
-        {level_label: effect}       for 'hidden potential'
-        restriction_text            for 'restrictions' (the <dd> text only, not its caution note)
-
-    a list of pairs, repeated blocks types ('skill #1' / 'skill #2') - headings not guaranteed unique
-    """
+    """fetch skill blocks in page order"""
     info = []
     current_skill = None
 
@@ -132,28 +124,29 @@ def _fetch_evo(soup: BeautifulSoup, selector: str) -> list[dict[str, dict[str, s
             continue
         
         entry = {}
+        seen = False
         for dt in dl.select("dt"):
             label, content = _pairs(dt, "dd")
             if not label or not content:
                 continue
 
             if "before" in label:
-                entry["before"] = _text(content)
+                seen = True
                 equip_id = _match_re(EQUIP_ID_RE, content.select_one(EQUIP_REF_TAG[0]), EQUIP_REF_TAG[1])
+                if equip_id and "before_id" in entry:
+                    raise ValueError(f"{heading}: two 'before' slots")
+                entry["before"] = _text(content)
                 if equip_id:
                     entry["before_id"] = equip_id
             elif "after" in label:
-                entry["after"] = _text(content)
-                equip_id = _match_re(EQUIP_ID_RE, content.select_one(EQUIP_REF_TAG[0]), EQUIP_REF_TAG[1])
-                if equip_id:
-                    entry["after_id"] = equip_id
-        if entry:
+                seen = True             # recognised, not read
+        if seen:
             info.append({heading: entry})
     return info or None
 
 
 def _fetch_reforge_mats(soup: BeautifulSoup) -> dict[str, dict[str, str | int]] | None:
-    """return : {ref_id: {name: str, quantity: int}}"""
+    """reforge materials by ref id"""
     info = {}
     for dd in soup.select(REFORGE_MAT_SELECTOR):
         name = _text(dd)
@@ -170,7 +163,7 @@ def fetch_reforge(soup: BeautifulSoup):
 
 
 def _fetch_sp_materials(soup: BeautifulSoup) -> list[dict[str, dict[str, tuple[str, str]]]] | None:
-    """return : [{heading: {ref_id: (name, quantity)}}]"""
+    """special materials per heading"""
     mats = []
     for div in soup.select(SP_MAT_TITLE_SELECTOR):
         heading, mats_div = _pairs(div, "div", class_=SP_MAT_CONTENT_NAME)
@@ -186,7 +179,7 @@ def _fetch_sp_materials(soup: BeautifulSoup) -> list[dict[str, dict[str, tuple[s
             else:
                 continue
 
-            mat_info = _text(td).split(NUM_MAT_SEP) #name x quantity
+            mat_info = _text(td).split(NUM_MAT_SEP)     # name x quantity
             if ref_id and mat_info:
                 entry[ref_id] = (mat_info[0], mat_info[1]) if len(mat_info) == 2 else (mat_info[0], "1")
         if entry:
