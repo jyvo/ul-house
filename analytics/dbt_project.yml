@@ -19,7 +19,7 @@ vars:
   new_item_days: 7
   alias_window_days: 7
   alias_min_score: 0.9
-  proc_size_tokens: ["s", "m", "l", "xl", "xxl", "xxxl"]
+  proc_size_pattern: "[0-9]?(?:x+)?(?:s|m|l)\\+?"  # xs, s, m, l, xl, xxl
   transform_version: 1 
 
 models:

@@ -300,7 +300,6 @@
             "evolution_chain": [],
             "evolution_edge": [
               {
-                "evidence": "both",
                 "from_name": "Fixture Blade",
                 "from_uid": "1000001",
                 "kind": "reforge",

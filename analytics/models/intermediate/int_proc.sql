@@ -1,4 +1,4 @@
-{%- set tokens = var('proc_size_tokens') | join('|') %}
+{%- set size_re = var('proc_size_pattern') %}
 with elements as (
   select string_agg(element_id, '|' order by element_id) as alt
   from {{ ref('stg_element') }} where element_id <> 'none'
@@ -13,13 +13,13 @@ procs as (
 sized as (
   select *,
     {{ hash_id('raw_name', 'effect_hash') }} as proc_id,
-    nullif(regexp_extract(raw_name, '^.*\s({{ tokens }})$', 1), '') as size
+    nullif(lower(regexp_extract(raw_name, '(?i)^.*\s({{ size_re }})$', 1)), '') as size
   from procs
 ),
 based as (
   select *,
     case when size is null then raw_name
-         else trim(regexp_extract(raw_name, '^(.*)\s({{ tokens }})$', 1)) end as base_name
+         else trim(regexp_extract(raw_name, '(?i)^(.*)\s({{ size_re }})$', 1)) end as base_name
   from sized
 ),
 named as (

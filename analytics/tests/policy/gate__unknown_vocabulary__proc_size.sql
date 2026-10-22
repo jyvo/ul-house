@@ -7,4 +7,4 @@ select distinct {{ gate_row("'proc'", 'cast(p.proc_id as varchar)', 'o.entry_kin
 from {{ ref('int_proc') }} p
 join owners o on o.proc_id = p.proc_id
 where p.size is null
-  and regexp_matches(p.raw_name, '\s[0-9]*(x*[sl]|m)\+?$')
+  and regexp_matches(p.raw_name, '(?i)\s[0-9]*x*[sml]\+*$')

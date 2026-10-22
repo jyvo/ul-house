@@ -28,10 +28,7 @@ unit_tests:
         - {revision: 1, entity_type: proc, entity_key: '7', operation: INSERT, row_hash: p, changed_at: '2026-10-04T23:17:00Z'}
 
   - name: int_changes_operations
-    description: >
-      no-op · UPDATE · RETIRE (state only) · retire + content change = UPDATE · revive = UPDATE ·
-      shared vanished = DELETE · deleted shared reappears = INSERT · equipment vanished = no row ·
-      ALIAS · ledger INSERT
+    description: change operations per entity state
     model: int_changes
     overrides:
       vars:
@@ -80,7 +77,7 @@ unit_tests:
         - {entity_type: uid_retired, entity_key: ret, operation: INSERT}
 
   - name: int_equipment_status_cases
-    description: live · gone first time · still retired keeps revision · out_of_scope · failed stays live · revive
+    description: equipment status transitions
     model: int_equipment_status
     given:
       - input: ref('int_run')
@@ -117,7 +114,7 @@ unit_tests:
         - {uid: revive, state: live, retire_reason: null, retired_revision: null, newly_retired: false, revived: true}
 
   - name: int_retired_new_first_retirement_only
-    description: first retirement · re-retire after revive adds nothing (ledger PK uid, P24)
+    description: new retirements only
     model: int_retired_new
     given:
       - input: ref('int_run')
@@ -135,7 +132,7 @@ unit_tests:
         - {uid: first, since_revision: 6, reason: gone}
 
   - name: int_alias_new_cases
-    description: confirmed recorded · already in ledger skipped · deferred when old changed · old live not recorded
+    description: new aliases only
     model: int_alias_new
     given:
       - input: ref('int_run')
@@ -186,7 +183,7 @@ unit_tests:
         - {ordinal: 2, scale_kind: damage_reduction, element_id: dark, gear_kind: gear, cap: xxl, pieces_needed: 3}
 
   - name: int_proc_decomposition
-    description: the three sample procs and a suffix element (§5.4)
+    description: sample procs and suffix element
     model: int_proc
     given:
       - input: ref('stg_element')
@@ -197,6 +194,14 @@ unit_tests:
           - {source_uid: '2', name: mastery over dark xl, effect_hash: e2}
           - {source_uid: '3', name: 'patriot sword: infinity', effect_hash: e3}
           - {source_uid: '4', name: obliterating water xl, effect_hash: e4}
+          - {source_uid: '5', name: '[constant] heal up 3xl', effect_hash: e5}
+          - {source_uid: '6', name: guard XXL, effect_hash: e6}
+          - {source_uid: '7', name: slash 2m, effect_hash: e7}
+          - {source_uid: '8', name: slash 12xl, effect_hash: e8}
+          - {source_uid: '9', name: slash xs, effect_hash: e9}
+          - {source_uid: '10', name: slash XL+, effect_hash: e10}
+          - {source_uid: '11', name: slash x, effect_hash: e11}
+          - {source_uid: '12', name: slash xl++, effect_hash: e12}
       - input: ref('int_proc_scaling')
         rows:
           - {source_uid: '1', ordinal: 1, element_id: water}
@@ -207,29 +212,53 @@ unit_tests:
         - {source_uid: '2', size: xl, name_element: dark, element_position: suffix, family_name: mastery over, element_id: dark}
         - {source_uid: '3', size: null, name_element: null, element_position: null, family_name: 'patriot sword: infinity', element_id: null}
         - {source_uid: '4', size: xl, name_element: water, element_position: suffix, family_name: obliterating, element_id: null}
+        - {source_uid: '5', size: 3xl, name_element: null, element_position: null, family_name: '[constant] heal up', element_id: null}
+        - {source_uid: '6', size: xxl, name_element: null, element_position: null, family_name: guard, element_id: null}
+        - {source_uid: '7', size: 2m, name_element: null, element_position: null, family_name: slash, element_id: null}
+        - {source_uid: '8', size: null, name_element: null, element_position: null, family_name: slash 12xl, element_id: null}
+        - {source_uid: '9', size: xs, name_element: null, element_position: null, family_name: slash, element_id: null}
+        - {source_uid: '10', size: xl+, name_element: null, element_position: null, family_name: slash, element_id: null}
+        - {source_uid: '11', size: null, name_element: null, element_position: null, family_name: slash x, element_id: null}
+        - {source_uid: '12', size: null, name_element: null, element_position: null, family_name: slash xl++, element_id: null}
 
-  - name: int_evolution_edge_resolution
-    description: before / after / both · a conflicting after-only edge is dropped (before is authoritative)
+  - name: int_evolution_edge_from_before_claims
+    description: one edge per claim
     model: int_evolution_edge
     given:
       - input: ref('int_evolution_claim')
         rows:
-          - {kind: reforge, from_uid: a, to_uid: b, side: before, from_name: A, to_name: B}
-          - {kind: reforge, from_uid: a, to_uid: b, side: after, from_name: A, to_name: B}
-          - {kind: reforge, from_uid: x, to_uid: y, side: before, from_name: X, to_name: Y}
-          - {kind: awakening, from_uid: p, to_uid: q, side: after, from_name: P, to_name: Q}
-          - {kind: reforge, from_uid: a, to_uid: c, side: after, from_name: A, to_name: C}
-          - {kind: reforge, from_uid: z, to_uid: y, side: after, from_name: Z, to_name: Y}
+          - {kind: reforge, from_uid: a, to_uid: b, from_name: A, to_name: B}
+          - {kind: awakening, from_uid: p, to_uid: q, from_name: P, to_name: Q}
       - input: ref('stg_equipment')
-        rows: []
+        rows:
+          - {source_uid: b, name: B2}
     expect:
       rows:
-        - {kind: reforge, from_uid: a, to_uid: b, evidence: both}
-        - {kind: reforge, from_uid: x, to_uid: y, evidence: before}
-        - {kind: awakening, from_uid: p, to_uid: q, evidence: after}
+        - {kind: reforge, from_uid: a, to_uid: b, from_name: A, to_name: B2}
+        - {kind: awakening, from_uid: p, to_uid: q, from_name: P, to_name: Q}
+
+  - name: int_evolution_material_attribution
+    description: materials attach to sole outgoing edge
+    model: int_evolution_material
+    given:
+      - input: ref('int_evolution_edge')
+        rows:
+          - {kind: reforge, from_uid: p, to_uid: p2}
+          - {kind: enlightening, from_uid: r, to_uid: r1}
+          - {kind: enlightening, from_uid: r, to_uid: r2}
+      - input: ref('stg_evolution_material')
+        rows:
+          - {source_uid: p, kind: reforge, ordinal: 1, material_kind: gear, ref_uid: m1, ref_name: M1, quantity: 2}
+          - {source_uid: q, kind: reforge, ordinal: 1, material_kind: gear, ref_uid: m2, ref_name: M2, quantity: 1}
+          - {source_uid: r, kind: enlightening, ordinal: 1, material_kind: item, ref_uid: m3, ref_name: M3, quantity: 5}
+    expect:
+      rows:
+        - {kind: reforge, from_uid: p, to_uid: p2, source_uid: p, ref_uid: m1, attributed: true}
+        - {kind: reforge, from_uid: null, to_uid: null, source_uid: q, ref_uid: m2, attributed: false}
+        - {kind: enlightening, from_uid: null, to_uid: null, source_uid: r, ref_uid: m3, attributed: false}
 
   - name: int_evolution_chain_positions
-    description: chain positions count an unshipped root; rows for shipped uids only
+    description: chain positions, shipped uids only
     model: int_evolution_chain
     given:
       - input: ref('int_evolution_edge')
@@ -244,7 +273,7 @@ unit_tests:
         - {kind: reforge, chain_id: r, uid: s2, position: 2}
 
   - name: int_changes_shared_delete_deferred_on_parse_error
-    description: "P29 - a shipped uid failed to parse, so the unreferenced shared row is not DELETEd (and the uid gets no row)"
+    description: shared delete deferred on parse error
     model: int_changes
     overrides:
       vars:
@@ -270,7 +299,7 @@ unit_tests:
       rows: []
 
   - name: int_changes_shared_delete_emitted_without_parse_error
-    description: "P29 - same state, every shipped uid parses (broken simply vanished: no row) -> the DELETE is emitted"
+    description: shared delete emitted without error
     model: int_changes
     overrides:
       vars:

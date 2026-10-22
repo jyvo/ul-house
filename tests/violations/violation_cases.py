@@ -97,7 +97,7 @@ def chain(*steps):
 
 def cycle(r):
     r = evolution("1015655", "reforge", before_uid="1015157", before_name="x")(r)
-    return P.patch(r, "stg_evolution", append=(R.StgEvolution("1015157", "reforge", "1015655", "y", None, None),))
+    return P.patch(r, "stg_evolution", append=(R.StgEvolution("1015157", "reforge", "1015655", "y"),))
 
 
 def fire_name_water_scaling(r):
@@ -198,7 +198,7 @@ def label_rename(uid: str, old: str, new: str):
     return lambda r: P.patch(r, "stg_stat", where=lambda s: s.source_uid == uid and s.label == old, label=new)
 
 
-def shipped_parse_failure_checks(built):
+def shipped_parse_failure_checks(built, decision=None):
     assert [r[0] for r in built.q("SELECT uid FROM build.shipped_parse_failures")] == ["1015157"]
     assert built.q("SELECT parser_version FROM build.shipped_parse_failures")[0][0] >= 1
     changes = built.changes()
@@ -207,7 +207,55 @@ def shipped_parse_failure_checks(built):
     assert built.q("SELECT count(*) FROM equipment WHERE uid = '1015157'") == [(0,)]
 
 
-def alias_deferred_checks(built):
+def warn_rows(built, name: str) -> int:
+    """Rows a warn-level test returned."""
+    (count,) = [r["failures"] for r in built.run_results()["results"] if r["unique_id"].endswith(f".{name}")]
+    return count
+
+
+AWAKENING_SEED = ("UPDATE frontier SET entry_kind = 'reference', keep_reason = 'evolution:awakening' "
+                  "WHERE item_id = '4434015'")
+
+
+def as_awakening(uid: str):
+    return lambda r: P.patch(r, "stg_evolution", where=lambda e: e.source_uid == uid and e.kind == "reforge",
+                             kind="awakening")
+
+
+def sr(uid: str):
+    return lambda r: P.patch(r, "stg_equipment", where=on(uid), rarity="sr")
+
+
+def sr_progression_checks(built, decision=None):
+    assert built.q("SELECT rarity, entry_kind, keep_reason FROM equipment WHERE uid = '4434015'") == \
+        [("SR", "reference", "evolution:awakening")]
+    assert built.q("SELECT kind, from_uid, to_uid FROM evolution_edge WHERE from_uid = '4434015'") == \
+        [("awakening", "4434015", "4435013")]
+
+
+def proc_size_checks(raw_name: str, size: str):
+    def check(built, decision=None):
+        assert built.q(f"SELECT DISTINCT size FROM proc WHERE raw_name = '{raw_name}'") == [(size,)]
+        assert warn_rows(built, "gate__unknown_vocabulary__proc_size") == 0
+    return check
+
+
+def proc_size_none_checks(raw_name: str):
+    def check(built, decision=None):
+        assert built.q(f"SELECT DISTINCT size FROM proc WHERE raw_name = '{raw_name}'") == [(None,)]
+        assert warn_rows(built, "gate__unknown_vocabulary__proc_size") == 0
+    return check
+
+
+def branching_successor_checks(built, decision=None):
+    # 4434015 now has two successors
+    assert built.q("SELECT count(*) FROM evolution_edge WHERE kind = 'reforge' AND from_uid = '4434015'") == [(2,)]
+    assert built.q("SELECT count(*) FROM evolution_material WHERE kind = 'reforge' AND from_uid = '4434015'") == [(0,)]
+    assert warn_rows(built, "info__evolution_material_dropped") == 18 + 2
+    assert not [f for f in decision.findings if f.check == "wiki_contradiction"]
+
+
+def alias_deferred_checks(built, decision=None):
     assert built.q("SELECT count(*) FROM uid_alias") == [(0,)]
 
 
@@ -260,12 +308,12 @@ CASES: tuple[Case, ...] = (
     Case("V05b-open-vocabulary-gear-type", "an unknown gear_type is a policy finding (P23)",
          mutate_records=lambda r: P.patch(r, "stg_equipment", where=on("1015655"), gear_type="spoon"),
          no_failing=True, findings=(("unknown_vocabulary", "catalog", "warning"),), levels=("warning",)),
-    Case("V06-evolution-contradiction", "§5.6 contradiction is wiki_contradiction",
-         mutate_records=evolution("4434015", "reforge", after_uid="1999002", after_name="ghost"),
-         no_failing=True, findings=(("wiki_contradiction", "catalog", "warning"),), levels=("warning",)),
-    Case("V07-two-predecessors", "§5.6 one predecessor is wiki_contradiction",
-         mutate_records=evolution("1015655", "reforge", after_uid="1796604", after_name="x"),
-         no_failing=True, findings=(("wiki_contradiction", "catalog", "warning"),), levels=("warning",)),
+    Case("V06-branching-successors", "R1: several successors of one page are legal; its materials are unattributed",
+         mutate_records=evolution("1015655", "reforge", before_uid="4434015", before_name="oberon"),
+         no_failing=True, levels=("pass",), extra=branching_successor_checks),
+    Case("V07-two-predecessors", "§5.6 one predecessor per (page, kind): a second stg_evolution row is a source error",
+         mutate_records=lambda r: P.patch(r, "stg_evolution", append=(R.StgEvolution("1015655", "reforge", "1796604", "x"),)),
+         failing=(r"unique_combination.*stg_evolution",)),
     Case("V08-evolution-cycle", "evolution graphs have no cycles (error)", mutate_records=cycle,
          failing=(r"evolution_no_cycle",)),
     Case("V09-proc-element-disagreement", "§5.4 name element vs scaling element is wiki_contradiction",
@@ -337,7 +385,7 @@ CASES: tuple[Case, ...] = (
     Case("V32-edge-endpoint-shipped", "every edge has a shipped endpoint (P11)",
          mutate_project=replace_in("models/marts/mart_evolution_edge.sql", "from {{ ref('int_evolution_edge') }}",
                                    "from {{ ref('int_evolution_edge') }} union all select 'reforge', '7000001', "
-                                   "'7000002', 'both', 'a', 'b'"),
+                                   "'7000002', 'a', 'b'"),
          failing=(r"evolution_edge_endpoint_shipped",)),
     Case("V33-one-operation-per-key", "a revision holds one operation per entity key",
          mutate_project=replace_in("models/intermediate/int_changes.sql", "  union all\n  select p.entity_type, p.entity_key, 'DELETE'",
@@ -372,7 +420,7 @@ CASES: tuple[Case, ...] = (
          findings=(("unknown_vocabulary", "catalog", "warning"),), sources=("gate__unknown_vocabulary__scale_kind",),
          levels=("warning",)),
     Case("V42-unknown-proc-size", "an unknown proc size token is a policy finding (P23)",
-         mutate_records=rename_proc("1015655", "water dragon slayer 4xl"), no_failing=True,
+         mutate_records=rename_proc("1015655", "water dragon slayer 12xl"), no_failing=True,
          findings=(("unknown_vocabulary", "catalog", "warning"),), sources=("gate__unknown_vocabulary__proc_size",),
          levels=("warning",)),
     Case("V43-proc-scaling-single-element", "one proc's scaling lines name one element (P23 wiki_contradiction)",
@@ -382,4 +430,44 @@ CASES: tuple[Case, ...] = (
     Case("V44-shipped-uid-stops-parsing", "P29/P31: a shipped uid whose page breaks keeps its state and is carried forward",
          previous=True, mutate_seed=lambda seed: P.garbage_page(seed, "1015157"), no_failing=True,
          findings=(("parse_failure", "catalog", "warning"),), levels=("warning",), extra=shipped_parse_failure_checks),
+    Case("V45-sr-progression-item-accepted", "SR is accepted for an awakening predecessor of a live kept item",
+         mutate_seed=seed_sql(AWAKENING_SEED),
+         mutate_records=chain(sr("4434015"), as_awakening("4435013")),
+         no_failing=True, levels=("pass",), extra=sr_progression_checks),
+    Case("V46-sr-catalog-row-fails", "SR on a catalog row is an error", mutate_records=sr("1015655"),
+         failing=(r"equipment_rarity_closed",)),
+    Case("V47-sr-reforge-reference-fails", "SR on a reforge reference row is an error",
+         mutate_seed=seed_sql("UPDATE frontier SET entry_kind = 'reference' WHERE item_id = '4434015'"),
+         mutate_records=sr("4434015"), failing=(r"equipment_rarity_closed",)),
+    Case("V48-sr-awakening-without-edge-fails", "SR on an awakening reference with no edge is an error",
+         mutate_seed=seed_sql(AWAKENING_SEED), mutate_records=sr("4434015"),
+         failing=(r"equipment_rarity_closed",)),
+    Case("V49-proc-size-3xl-accepted", "a tier digit with a base size is a known proc size",
+         mutate_records=rename_proc("1015655", "water dragon slayer 3xl"), no_failing=True, levels=("pass",),
+         extra=proc_size_checks("water dragon slayer 3xl", "3xl")),
+    Case("V50-proc-size-xxl-any-case", "proc sizes match in any case and are recorded lower-case",
+         mutate_records=rename_proc("1015655", "water dragon slayer XXL"), no_failing=True, levels=("pass",),
+         extra=proc_size_checks("water dragon slayer XXL", "xxl")),
+    Case("V51-proc-size-tier-m-accepted", "a tier digit with the m base is a known proc size",
+         mutate_records=rename_proc("1015655", "water dragon slayer 2m"), no_failing=True, levels=("pass",),
+         extra=proc_size_checks("water dragon slayer 2m", "2m")),
+    Case("V52-proc-size-xs-accepted", "xs is a known proc size",
+         mutate_records=rename_proc("1015655", "water dragon slayer xs"), no_failing=True, levels=("pass",),
+         extra=proc_size_checks("water dragon slayer xs", "xs")),
+    Case("V53-proc-size-plus-accepted", "a plus suffix is kept",
+         mutate_records=rename_proc("1015655", "water dragon slayer xl+"), no_failing=True, levels=("pass",),
+         extra=proc_size_checks("water dragon slayer xl+", "xl+")),
+    Case("V54-proc-size-x-not-accepted-no-warning", "a bare run records no size",
+         mutate_records=rename_proc("1015655", "water dragon slayer x"), no_failing=True, levels=("pass",),
+         extra=proc_size_none_checks("water dragon slayer x")),
+    Case("V55-proc-size-xx-not-accepted-no-warning", "a bare run records no size",
+         mutate_records=rename_proc("1015655", "water dragon slayer xx"), no_failing=True, levels=("pass",),
+         extra=proc_size_none_checks("water dragon slayer xx")),
+    Case("V56-proc-size-double-plus-is-unknown", "a size-shaped junk token warns",
+         mutate_records=rename_proc("1015655", "water dragon slayer xl++"), no_failing=True,
+         findings=(("unknown_vocabulary", "catalog", "warning"),), sources=("gate__unknown_vocabulary__proc_size",),
+         levels=("warning",)),
+    Case("V57-proc-size-small-not-accepted-no-warning", "a plain word records no size",
+         mutate_records=rename_proc("1015655", "water dragon slayer small"), no_failing=True, levels=("pass",),
+         extra=proc_size_none_checks("water dragon slayer small")),
 )
