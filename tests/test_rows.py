@@ -8,6 +8,7 @@ import pytest
 
 from catalog_fixtures import CATALOG, SSR_REFORGE_UID, catalog_params
 from fetch_fixtures import UIDS, cached_path, missing
+from mini_seed import evo_dl, insert_after_label_dl
 from ul_house import ids
 from ul_house import rows as R
 from ul_house.data.elements import ELEMENT
@@ -51,7 +52,7 @@ SPEC = {
     "stg_passive_skill": "source_uid:T name:T effect_hash:T",
     "stg_potential_level": "source_uid:T level:I target:T? description:T",
     "stg_skill_effect": "source_uid:T owner_kind:T owner_ordinal:I ordinal:I target:T? description:T",
-    "stg_evolution": "source_uid:T kind:T before_uid:T? before_name:T? after_uid:T? after_name:T?",
+    "stg_evolution": "source_uid:T kind:T before_uid:T? before_name:T?",
     "stg_evolution_material": "source_uid:T kind:T ordinal:I material_kind:T ref_uid:T? ref_name:T quantity:I",
     "stg_element": "element_id:T",
     "stg_element_relation": "element_id:T kind:T ordinal:I related_id:T",
@@ -180,7 +181,7 @@ def rebuild(records, uid):
             ItemEvoMaterial(quantity=m.quantity, item=ItemRef(m.ref_uid, m.ref_name))
             for m in mats if m.material_kind == "item"
         )
-        common = dict(before=ref(r.before_uid, r.before_name), after=ref(r.after_uid, r.after_name))
+        common = dict(before=ref(r.before_uid, r.before_name))
         if r.kind == "reforge":
             evo["reforge"] = Reforge(material=gear or None, **common)
         elif r.kind == "awakening":
@@ -271,7 +272,7 @@ def test_record_fields_equal_staging_columns(table):
 
 def test_evolution_tables_follow_the_5_5_ddl():
     assert [f.name for f in fields(R.StgEvolution)] == [
-        "source_uid", "kind", "before_uid", "before_name", "after_uid", "after_name",
+        "source_uid", "kind", "before_uid", "before_name",
     ]
     assert [f.name for f in fields(R.StgEvolutionMaterial)] == [
         "source_uid", "kind", "ordinal", "material_kind", "ref_uid", "ref_name", "quantity",
@@ -382,6 +383,18 @@ def test_round_trip_from_pages():
     assert SSR_REFORGE_UID in UIDS
     for uid, model in CATALOG.items():
         assert rebuild(records, uid) == model
+
+
+def test_duplicate_before_is_a_parse_error():
+    absent = missing()
+    if absent:
+        pytest.skip(f"fixture pages not cached: {', '.join(absent)}")
+    data = insert_after_label_dl(
+        cached_path("4435013").read_bytes(), "Before Enlightening",
+        evo_dl("Before Enlightening", "4435001", "One") + evo_dl("Before Enlightening", "4435002", "Two"))
+    page = R.parse_page("4435013", "h", data)
+    assert page.model is None
+    assert page.error is not None and page.error.startswith("ValueError: ") and "two 'before" in page.error
 
 
 def test_parse_page_accepts_text_and_bytes():
@@ -602,11 +615,9 @@ def test_evo_rows():
     by_kind = {(r.source_uid, r.kind): r for r in records.stg_evolution}
     assert len(by_kind) == 8
     ur = by_kind[(sc.UR_WEAPON.uid, "reforge")]
-    assert (ur.before_uid, ur.before_name, ur.after_uid, ur.after_name) == (
-        "1014667", "sea dragon's sword", None, None,
-    )
+    assert (ur.before_uid, ur.before_name) == ("1014667", "sea dragon's sword")
     ench = by_kind[(sc.ENLIGHTENING_MON.uid, "enlightening")]
-    assert (ench.before_uid, ench.after_uid) == (None, "4435353")
+    assert (ench.before_uid, ench.before_name) == (None, None)
     assert (sc.ENLIGHTENING_MON.uid, "reforge") in by_kind
     assert (sc.XENO_WEAPON.uid, "reforge") not in by_kind
 

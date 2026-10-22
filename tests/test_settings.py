@@ -176,7 +176,8 @@ class TestCrossFieldRules:
             warnings.simplefilter("error")
             build(raw)
 
-    @pytest.mark.parametrize("key, value", [("direction", "sideways"), ("policy", "keep")])
+    @pytest.mark.parametrize("key, value", [("direction", "sideways"), ("direction", "successors"), 
+                                            ("direction", "both"), ("policy", "keep")])
     def test_evolution_vocab(self, raw, key, value):
         raw["evolution"][key] = value
         with pytest.raises(ScopeError, match=key):
@@ -240,7 +241,7 @@ class TestClamp:
             UserSettings(90, 50, ("UR",))
 
     def test_band_outside_scope_reports_bounds(self, scope):
-        """30-35 lies wholly below 42-98: it lands on the edge, and the player is told"""
+        """30-35 below 42-98: lands on edge"""
         result = clamp(UserSettings(30, 35, ("UR",)), scope)
         assert (result.settings.cost_min, result.settings.cost_max) == (42, 42)
         assert set(result.widened) == {"cost_min", "cost_max"}
@@ -255,7 +256,7 @@ class TestClamp:
             UserSettings(42, 98, ())
 
     def test_hand_built_settings_not_widening(self, scope):
-        """names_excluded are extra exclusions; leaving them out drops none of the scope's"""
+        """names_excluded are extras; omitting drops none"""
         result = clamp(UserSettings(42, 98, ("UR",)), scope)
         assert result.widened == ()
         assert result.settings.names_excluded == ("awakening ninoyu",)
@@ -301,7 +302,7 @@ class TestReviewFixes:
     def test_duplicate_follow(self, raw):
         raw["evolution"]["follow"] = ["reforge", "reforge"]
         del raw["evolution"]["per_chain"]
-        with pytest.raises(ScopeError, match="duplicates"):
+        with pytest.raises(ScopeError, match="has dupes"):
             build(raw)
 
     def test_missing_catalog_is_scope_error(self, tmp_path):

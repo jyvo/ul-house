@@ -8,6 +8,7 @@ from ul_house.parse import UnparseablePage, parse, parse_html
 
 from catalog_fixtures import SSR_REFORGE_UID, catalog_params
 from fetch_fixtures import cached_path
+from mini_seed import evo_dl, insert_after_label_dl
 
 
 @pytest.mark.parametrize("uid, expected", catalog_params())
@@ -36,7 +37,7 @@ def test_gear_type_model_selection(uid, model, soups):
 
 
 def test_uid_from_the_caller(soups):
-    """page carries no id of its own so parse() takes it as an arg"""
+    """page lacks id -> parse() takes it"""
     assert parse(soups["1015655"], "some-other-id").uid == "some-other-id"
 
 
@@ -104,15 +105,14 @@ class TestEvolution:
     def test_reforge_before_ref(self, soups):
         reforge = parse(soups["1015655"], "1015655").reforge
         assert reforge.before.uid == "1014667"
-        assert reforge.after is None
 
     def test_empty_reforge_table(self, soups):
-        """the table is always rendered, so an empty one means no reforge"""
+        """table always rendered, empty means none"""
         assert parse(soups["1015157"], "1015157").reforge is None
 
     def test_reforge_materials(self, soups):
         reforge = parse(soups[SSR_REFORGE_UID], SSR_REFORGE_UID).reforge
-        assert reforge.after.uid == "4435013"
+        assert reforge.before is None
         assert {m.gear.uid: m.quantity for m in reforge.material} == {
             "1074071": 1,
             "1104903": 4,
@@ -121,7 +121,6 @@ class TestEvolution:
     def test_awakening_with_materials(self, soups):
         awakening = parse(soups["1015157"], "1015157").awakening
         assert awakening.before.uid == "1015065"
-        assert awakening.after.uid == "1015615"
         assert len(awakening.gear_materials) == 5
         assert len(awakening.item_materials) == 5
 
@@ -133,7 +132,15 @@ class TestEvolution:
     def test_sep_sp_evo_types(self, soups):
         monster = parse(soups["4435013"], "4435013")
         assert monster.awakening is None
-        assert monster.enlightening.after.uid == "4435353"
+        assert monster.enlightening.before is None
+        assert monster.enlightening.gear_materials          # after-only dl still registers kind
+
+    def test_duplicate_before_is_an_error(self):
+        html = insert_after_label_dl(
+            cached_path("4435013").read_bytes(), "Before Enlightening",
+            evo_dl("Before Enlightening", "4435001", "One") + evo_dl("Before Enlightening", "4435002", "Two"))
+        with pytest.raises(ValueError, match="two 'before"):
+            parse_html(html, "4435013")
 
     def test_item_mat_quantities(self, soups):
         materials = parse(soups["1015157"], "1015157").awakening.item_materials
@@ -146,7 +153,7 @@ class TestStats:
         assert stats["atk"] == {"initial": 10111, "max1": 32741, "max2": 72097}
 
     def test_blank_columns_dropped(self, soups):
-        """a sword has no def/mdef, so those columns never become 'Stats'"""
+        """ex.sword has no def/mdef stats"""
         labels = {s.label for s in parse(soups["1015655"], "1015655").stats}
         assert labels == {"atk", "matk"}
 

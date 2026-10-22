@@ -36,7 +36,7 @@ class Equipment(EquipmentRef, ABC):
     element: Element
     max_level: int
     stats: tuple[Stats, ...]
-    reforge: Reforge | None = None # None if before and after are not present via parser, note table always present
+    reforge: Reforge | None = None # None without before or materials
     awakening: Awakening | None = None
 
 

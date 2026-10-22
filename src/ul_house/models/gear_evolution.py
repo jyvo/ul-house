@@ -10,7 +10,6 @@ if TYPE_CHECKING:
 @dataclass(frozen=True, slots=True)
 class GearEvolution(ABC):
     before: EquipmentRef | None = None
-    after: EquipmentRef | None = None
 
 
 @dataclass(frozen=True, slots=True)

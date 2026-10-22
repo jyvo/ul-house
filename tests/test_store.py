@@ -159,22 +159,20 @@ class TestListing:
 @dataclass
 class Link:
     kind: str
-    side: str
     target_id: str
     target_name: str = "x"
 
 
 class TestLinks:
     def test_replace_per_source(self, store):
-        store.put_links("A", [Link("reforge", "before", "B"), Link("awakening", "after", "C")])
-        store.put_links("A", [Link("reforge", "before", "D")])
+        store.put_links("A", [Link("reforge", "B"), Link("awakening", "C")])
+        store.put_links("A", [Link("reforge", "D")])
         assert [(r["kind"], r["target_id"]) for r in store.links_from(["A"])] == [("reforge", "D")]
 
-    def test_lookup_both_ways(self, store):
-        store.put_links("A", [Link("reforge", "before", "B")])
-        store.put_links("C", [Link("awakening", "before", "B")])
-        assert {r["source_id"] for r in store.links_to(["B"])} == {"A", "C"}
-        assert store.links_from([]) == [] and store.links_to([]) == []
+    def test_links_from_empty(self, store):
+        store.put_links("A", [Link("reforge", "B")])
+        assert store.links_from([]) == []
+        assert not hasattr(store, "links_to")
 
 
 class TestMetaAndTransactions:
@@ -194,7 +192,7 @@ class TestMetaAndTransactions:
     def test_nested_transactions_join_the_outer(self, store):
         with pytest.raises(RuntimeError):
             with store.transaction():
-                store.put_links("A", [Link("reforge", "before", "B")])  # opens its own, nested
+                store.put_links("A", [Link("reforge", "B")])  # opens its own, nested
                 raise RuntimeError
         assert store.links_from(["A"]) == []
 
@@ -231,7 +229,7 @@ class TestSavepoints:
         assert (store.get_meta("a"), store.get_meta("b")) == ("1", None)
 
     def test_failed_commit_rolls_back_and_the_store_stays_usable(self, store):
-        """a deferred foreign-key violation only surfaces at COMMIT"""
+        """deferred FK violation surfaces at COMMIT"""
         with pytest.raises(sqlite3.IntegrityError):
             with store.transaction():
                 store.conn.execute("PRAGMA defer_foreign_keys = ON")
@@ -298,6 +296,16 @@ class TestSchema:
         conn.commit()
         conn.close()
         with pytest.raises(SeedSchemaError):
+            Store.open(path)
+
+    def test_seed_with_evo_link_side_column_refused(self, tmp_path):
+        path = tmp_path / "side.sqlite"
+        with Store.open(path) as s:
+            s.conn.execute("DROP TABLE evo_link")
+            s.conn.execute(
+                "CREATE TABLE evo_link (source_id TEXT NOT NULL, kind TEXT NOT NULL, side TEXT NOT NULL, "
+                "target_id TEXT NOT NULL, target_name TEXT NOT NULL, PRIMARY KEY (source_id, kind, side))")
+        with pytest.raises(SeedSchemaError, match="rebuild"):
             Store.open(path)
 
     def test_other_schema_version_refused(self, tmp_path):
