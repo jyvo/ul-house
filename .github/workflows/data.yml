@@ -1,0 +1,124 @@
+# daily data run
+name: data
+on:
+  schedule:
+    - cron: "17 23 * * *"
+  workflow_dispatch:
+    inputs:
+      approve_candidate:
+        description: "Held candidate revision to publish"
+        type: string
+        required: false
+        default: ""
+      reason:
+        description: "Candidate approval reason"
+        type: string
+        required: false
+        default: ""
+      force_snapshot:
+        description: "Make this release snapshot-only"
+        type: boolean
+        required: false
+        default: false
+concurrency:
+  group: data
+  cancel-in-progress: false
+permissions:
+  contents: read
+  issues: write
+env:
+  UL_HOUSE_STORE: r2
+  R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  R2_BUCKET: ul-house
+  UL_HOUSE_API_BASE: ${{ vars.UL_HOUSE_API_BASE }}
+  APPROVE: ${{ inputs.approve_candidate || '' }}
+  BUILD: uv run --locked --group build python -m ul_house.build
+jobs:
+  data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0                    # full history needed
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --group build --group dev
+      - name: Approval inputs
+        if: env.APPROVE != ''
+        env:
+          REASON: ${{ inputs.reason }}
+        run: test -n "$REASON" || { echo "::error::reason is required with approve_candidate"; exit 1; }
+      - name: Publish approved candidate
+        if: env.APPROVE != ''
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          REASON: ${{ inputs.reason }}
+          APPROVER: ${{ github.actor }}
+        run: $BUILD publish --work work --approve "$APPROVE" --reason "$REASON" --approver "$APPROVER"
+      - name: Pull build state (fails if the seed is missing)
+        if: env.APPROVE == ''
+        run: $BUILD pull --work work
+      - name: Canary
+        id: canary
+        if: env.APPROVE == ''
+        continue-on-error: true
+        run: uv run --locked --group build --group dev python -m pytest -m live tests/test_schema_drift.py -p no:cacheprovider
+      - name: Crawl
+        if: env.APPROVE == ''
+        run: $BUILD crawl --work work
+      - name: Parse
+        if: env.APPROVE == ''
+        run: $BUILD parse --work work
+      - name: Model
+        if: env.APPROVE == ''
+        run: $BUILD model --work work
+      - name: Gate
+        if: env.APPROVE == ''
+        env:
+          CANARY: ${{ steps.canary.outcome }}
+        run: $BUILD gate --work work $([ "$CANARY" = failure ] && echo --canary-failed)
+      - name: Release
+        if: env.APPROVE == ''
+        env:
+          FORCE: ${{ inputs.force_snapshot }}
+        run: $BUILD release --work work $([ "$FORCE" = true ] && echo --force-snapshot)
+      - name: Publish
+        id: publish
+        if: env.APPROVE == ''
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: $BUILD publish --work work
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-run-${{ github.run_id }}
+          path: |
+            work/gate.json
+            work/outcome.json
+            work/release/decision.json
+            work/target/run_results.build.json
+            work/target/manifest.json
+          if-no-files-found: ignore
+      - name: Issue for a held candidate
+        if: steps.publish.outputs.outcome == 'held'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_ID: ${{ github.run_id }}
+        run: gh issue create --title "Held release candidate (data run $RUN_ID)" --body "A blocker held the candidate. Review the job summary at $RUN_URL, then dispatch the data workflow with approve_candidate and a reason."
+      - name: Issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_ID: ${{ github.run_id }}
+        run: gh issue create --title "Data run failed ($RUN_ID)" --body "The current revision is unchanged. $RUN_URL"
+      - name: Keep the schedule enabled               # prevents scheduled-run pause
+        if: always() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_KEEPALIVE_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: gh api --method PUT "repos/$REPO/actions/workflows/data.yml/enable"
