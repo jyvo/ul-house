@@ -22,8 +22,8 @@ from ul_house.crawl.frontier import Frontier
 from ul_house.crawl.links import LinkMarkupError, record_links
 from ul_house.http import robots as robots_mod
 from ul_house.http.client import Client, FetchError, Stopped
-from ul_house.select import select
 from ul_house.seed.store import RUN_COUNTERS, RUN_TRIGGERS, SeedSchemaError, Store
+from ul_house.select import select
 from ul_house.settings import CATALOG_PATH, Scope, ScopeError, load_scope
 
 MAX_ATTEMPTS = 3
@@ -429,7 +429,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             except CrawlFailed as exc:
                 print(f"crawl failed (run {exc.run_id}): {exc}", file=sys.stderr)
                 return EXIT_FAILED
-            except Exception:
+            except Exception:  # noqa: BLE001
                 traceback.print_exc()
                 return EXIT_FAILED
         print(summary(result))

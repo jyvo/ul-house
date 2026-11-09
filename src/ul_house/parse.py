@@ -1,14 +1,45 @@
 from bs4 import BeautifulSoup
 
-from ul_house.config import STAT_TIER_RE, EFFECT_SPLIT_RE, TARGET_RE, SECTION_RE, AMPLIFIER_RE, POTENTIAL_RE, SKILL_HEADING_RE
-from ul_house.config import PASSIVE_HEADING, ABSENT_VAL, EFFECTS, ACTIVATION, ACTIVATION_RATE, SCALES, WEAPON_TYPES, MONSTER_TYPE
-from ul_house.extract import fetch_name, fetch_data, fetch_stats, fetch_ability, fetch_skills, fetch_reforge, fetch_sp_evo
-
+from ul_house.config import (
+    ABSENT_VAL,
+    ACTIVATION,
+    ACTIVATION_RATE,
+    AMPLIFIER_RE,
+    EFFECT_SPLIT_RE,
+    EFFECTS,
+    MONSTER_TYPE,
+    PASSIVE_HEADING,
+    POTENTIAL_RE,
+    SCALES,
+    SECTION_RE,
+    SKILL_HEADING_RE,
+    STAT_TIER_RE,
+    TARGET_RE,
+    WEAPON_TYPES,
+)
 from ul_house.data.elements import ELEMENT
-from ul_house.models.equipment import ItemRef, EquipmentRef, Weapon, DefensiveGear, Monster, Stats
-from ul_house.models.gear_evolution import Reforge, Awakening, Enlightening, GearEvoMaterial, ItemEvoMaterial
-from ul_house.models.gear_mechanism import Proc, ProcActivation, ProcScaling, SkillEffect, WeaponAbility, MonsterSkill, PassiveSkill, HiddenPotential, PotentialLevel
-
+from ul_house.extract import (
+    fetch_ability,
+    fetch_data,
+    fetch_name,
+    fetch_reforge,
+    fetch_skills,
+    fetch_sp_evo,
+    fetch_stats,
+)
+from ul_house.models.equipment import DefensiveGear, EquipmentRef, ItemRef, Monster, Stats, Weapon
+from ul_house.models.gear_evolution import Awakening, Enlightening, GearEvoMaterial, ItemEvoMaterial, Reforge
+from ul_house.models.gear_mechanism import (
+    HiddenPotential,
+    MonsterSkill,
+    PassiveSkill,
+    PotentialLevel,
+    Proc,
+    ProcActivation,
+    ProcScaling,
+    SkillEffect,
+    WeaponAbility,
+)
 
 PARSER_VERSION: int = 1
 
@@ -268,18 +299,18 @@ def parse(soup: BeautifulSoup, item_id: str) -> Weapon | DefensiveGear | Monster
     awakening = sp_evo.get("awakening")
     enlightening = sp_evo.get("enlightening")
 
-    common = dict(
-        uid=item_id,
-        name=name,
-        rarity=rarity,
-        gear_type=gear_type,
-        cost=cost,
-        element=element,
-        max_level=max_level,
-        stats=stats,
-        reforge=reforge,
-        awakening=awakening,
-    )
+    common = {
+        "uid": item_id,
+        "name": name,
+        "rarity": rarity,
+        "gear_type": gear_type,
+        "cost": cost,
+        "element": element,
+        "max_level": max_level,
+        "stats": stats,
+        "reforge": reforge,
+        "awakening": awakening,
+    }
 
     if gear_type in WEAPON_TYPES:
         return Weapon(

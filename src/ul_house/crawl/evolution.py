@@ -5,8 +5,8 @@ from dataclasses import dataclass
 
 from ul_house.crawl.discover import ListRow
 from ul_house.crawl.frontier import Entry, Frontier
-from ul_house.select import decide
 from ul_house.seed.store import Store
+from ul_house.select import decide
 from ul_house.settings import POLICIES, Scope
 
 

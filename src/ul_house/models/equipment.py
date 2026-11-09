@@ -1,11 +1,13 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from abc import ABC
 
-from ul_house.models.combat_mechanism import Element
-from ul_house.models.gear_mechanism import Proc, WeaponAbility, MonsterSkill, PassiveSkill, HiddenPotential
-from ul_house.models.gear_evolution import Reforge, Awakening, Enlightening
+from abc import ABC
+from dataclasses import dataclass
+
 from ul_house.config import BASE_URL, EQUIP_ICON_PATH
+from ul_house.models.combat_mechanism import Element
+from ul_house.models.gear_evolution import Awakening, Enlightening, Reforge
+from ul_house.models.gear_mechanism import HiddenPotential, MonsterSkill, PassiveSkill, Proc, WeaponAbility
+
 
 @dataclass(frozen=True, slots=True)
 class ItemRef:
