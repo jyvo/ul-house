@@ -1,3 +1,4 @@
+"""CI entry point for pipeline stages."""
 from __future__ import annotations
 
 import argparse
@@ -20,6 +21,7 @@ from ul_house.build import sign
 from ul_house.build.store import Layout, ObjectMissing, StoreError, open_store, sha256_file, verify_object
 from ul_house.seed.store import SCHEMA_VERSION as SEED_SCHEMA_VERSION
 
+DESCRIPTION = (__doc__ or "CI entry point for pipeline stages.").split("\n\n")[0]
 STAGES = ("pull", "crawl", "parse", "model", "gate", "release", "publish", "checkpoint", "all", "keygen", "seed-push")
 ALL_ORDER = ("pull", "crawl", "parse", "model", "gate", "release", "publish")
 EXIT_OK, EXIT_FAILED, EXIT_STATE_MISSING, EXIT_CHECK_FAILED, EXIT_USAGE = 0, 1, 2, 4, 64
@@ -35,7 +37,7 @@ class _Parser(argparse.ArgumentParser):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = _Parser(prog="python -m ul_house.build", description=__doc__.split("\n\n")[0])
+    p = _Parser(prog="python -m ul_house.build", description=DESCRIPTION)
     p.add_argument("stage", choices=STAGES, metavar="stage", help="one of: " + ", ".join(STAGES))
     p.add_argument("--work", type=Path, default=Path("work"), help="work directory (default ./work)")
     p.add_argument("--env-file", default=None, metavar="PATH", help="KEY=VALUE file (default ./.env if present)")
