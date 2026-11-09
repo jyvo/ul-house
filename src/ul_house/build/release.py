@@ -24,7 +24,13 @@ from typing import Any, Literal
 import duckdb
 
 from ul_house.build.store import (
-    CHUNK, IntegrityError, Layout, ObjectMissing, ObjectStore, sha256_bytes, sha256_file,
+    CHUNK,
+    IntegrityError,
+    Layout,
+    ObjectMissing,
+    ObjectStore,
+    sha256_bytes,
+    sha256_file,
 )
 from ul_house.database import entities as E
 from ul_house.sync.protocol import API_SCHEMA_VERSION
@@ -635,9 +641,9 @@ def alias_end(mart: Path | duckdb.DuckDBPyConnection) -> dict[str, str]:
     with _duck(mart) as conn:
         direct = {r[0]: r[1] for r in conn.execute("SELECT old_uid, new_uid FROM uid_alias").fetchall()}
     ends: dict[str, str] = {}
-    for old in direct:
+    for old, first in direct.items():
         seen = [old]
-        cur = direct[old]
+        cur = first
         while cur in direct:
             if cur in seen:
                 raise ReleaseError(f"uid_alias cycle: {' -> '.join(seen + [cur])}")
@@ -1585,11 +1591,46 @@ def _read_icons(mart: Path) -> dict[str, str]:
 
 
 __all__ = [
-    "BuildInfo", "Bundle", "BundleFile", "Change", "ContractError", "GateSummary", "IconSource",
-    "LOGICAL_REFS", "PACKAGE_WINDOW", "ReleaseDecision", "ReleaseError", "ReleaseInputs", "ReplayError",
-    "SNAPSHOT_ONLY_RATIO", "SNAPSHOT_ONLY_REASONS", "SnapshotInfo", "alias_end", "aggregate_data",
-    "apply_ops_reference", "build_icon_pack", "build_package", "build_release", "build_snapshot",
-    "check_entities", "check_invariants", "check_ledger_grows", "duck_sql", "icon_bytes", "net_ops",
-    "next_revision", "read_changes", "read_parse_failures", "reference_graph", "replay", "shipped_tables",
-    "snapshot_only_reasons", "supported_from_revisions", "table_hash", "table_hashes", "utc_now", "utc_text", "validate",
+    "LOGICAL_REFS",
+    "PACKAGE_WINDOW",
+    "SNAPSHOT_ONLY_RATIO",
+    "SNAPSHOT_ONLY_REASONS",
+    "BuildInfo",
+    "Bundle",
+    "BundleFile",
+    "Change",
+    "ContractError",
+    "GateSummary",
+    "IconSource",
+    "ReleaseDecision",
+    "ReleaseError",
+    "ReleaseInputs",
+    "ReplayError",
+    "SnapshotInfo",
+    "aggregate_data",
+    "alias_end",
+    "apply_ops_reference",
+    "build_icon_pack",
+    "build_package",
+    "build_release",
+    "build_snapshot",
+    "check_entities",
+    "check_invariants",
+    "check_ledger_grows",
+    "duck_sql",
+    "icon_bytes",
+    "net_ops",
+    "next_revision",
+    "read_changes",
+    "read_parse_failures",
+    "reference_graph",
+    "replay",
+    "shipped_tables",
+    "snapshot_only_reasons",
+    "supported_from_revisions",
+    "table_hash",
+    "table_hashes",
+    "utc_now",
+    "utc_text",
+    "validate",
 ]

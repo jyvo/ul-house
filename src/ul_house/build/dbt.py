@@ -161,7 +161,7 @@ def invoke(args: Sequence[str], *, work_dir: Path, project_dir: Path = ANALYTICS
         stale.unlink(missing_ok=True)
     full = [*args, "--project-dir", str(project_dir), "--profiles-dir", str(project_dir),
             "--target-path", str(target), "--log-path", str(work_dir / "logs")]
-    proc = subprocess.run([sys.executable, "-c", CHILD, *full], cwd=work_dir,
+    proc = subprocess.run([sys.executable, "-c", CHILD, *full], check=False, cwd=work_dir,
                           env=child_env(work_dir, project_dir, env),
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                           encoding="utf-8", errors="replace")

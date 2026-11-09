@@ -7,7 +7,7 @@ import math
 import tomllib
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -34,7 +34,7 @@ GATE_COLUMNS: tuple[str, ...] = (
 
 def utc_now() -> str:
     """ISO-8601 UTC + Z suffix, whole seconds"""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _rank(level: str) -> int:
@@ -391,9 +391,9 @@ def evaluate(policy: GatePolicy, results: Sequence[NodeResult], rows: Mapping[st
     def add(check: str, level: str, scope: str, count: int, *, pop: int | None = None,
             pct: float | None = None, escalated: bool = False, sources: Sequence[str] = (),
             sample: Sequence[str] = (), message: str = "") -> None:
-        raw.append(dict(check=check, level=level, scope=scope, count=count, population=pop, pct=pct,
-                        escalated=escalated, sources=tuple(sorted(sources)),
-                        sample=tuple(sorted(sample))[:SAMPLE_SIZE], message=message))
+        raw.append({"check": check, "level": level, "scope": scope, "count": count, "population": pop, "pct": pct,
+                        "escalated": escalated, "sources": tuple(sorted(sources)),
+                        "sample": tuple(sorted(sample))[:SAMPLE_SIZE], "message": message})
 
     # errors
     for problem in context.problems:
@@ -667,8 +667,8 @@ def _finding_rows(decision: GateDecision) -> list[tuple]:
         key = (f.check, f.scope)
         m = merged.get(key)
         if m is None:
-            merged[key] = dict(level=f.level, count=f.count, population=f.population, pct=f.pct,
-                               escalated=f.escalated, consecutive_runs=f.consecutive_runs)
+            merged[key] = {"level": f.level, "count": f.count, "population": f.population, "pct": f.pct,
+                               "escalated": f.escalated, "consecutive_runs": f.consecutive_runs}
             continue
         if _rank(f.level) > _rank(m["level"]):
             m["level"], m["pct"] = f.level, f.pct
