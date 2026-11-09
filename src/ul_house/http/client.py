@@ -13,7 +13,7 @@ import threading
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from urllib.parse import urljoin, urlsplit
 
@@ -108,8 +108,8 @@ def retry_after_seconds(value: str | None, now: datetime | None = None) -> float
     except (TypeError, ValueError):
         return None
     if when.tzinfo is None:
-        when = when.replace(tzinfo=timezone.utc)
-    now = now or datetime.now(timezone.utc)
+        when = when.replace(tzinfo=UTC)
+    now = now or datetime.now(UTC)
     return max(0.0, (when - now).total_seconds())
 
 

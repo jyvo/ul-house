@@ -1,5 +1,5 @@
 """seed database store"""
-from __future__ import annotations 
+from __future__ import annotations
 
 import hashlib
 import sqlite3
@@ -7,7 +7,7 @@ import zlib
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -28,7 +28,7 @@ class SeedSchemaError(RuntimeError):
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 @dataclass(frozen=True)

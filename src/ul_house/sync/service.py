@@ -10,7 +10,7 @@ import threading
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
@@ -20,10 +20,29 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from ul_house import database
 from ul_house.http.client import RETRY_STATUSES, Client, FetchError, Response, Stopped
 from ul_house.sync import apply, snapshot, verify
-from ul_house.sync.errors import ApplyError, DatabaseBusy, PackageError, ProtocolError, Refused, RevisionMismatch, SnapshotError, SyncError, VerificationError
+from ul_house.sync.errors import (
+    ApplyError,
+    DatabaseBusy,
+    PackageError,
+    ProtocolError,
+    Refused,
+    RevisionMismatch,
+    SnapshotError,
+    SyncError,
+    VerificationError,
+)
 from ul_house.sync.icons import IconCache
 from ul_house.sync.keys import PUBLIC_KEYS
-from ul_house.sync.protocol import ICON_PACK_NAME_RE, ApiError, Manifest, RequiresSnapshot, UpdatePackage, format_utc, loads, utc_now
+from ul_house.sync.protocol import (
+    ICON_PACK_NAME_RE,
+    ApiError,
+    Manifest,
+    RequiresSnapshot,
+    UpdatePackage,
+    format_utc,
+    loads,
+    utc_now,
+)
 
 BASE_PACK_THRESHOLD = 25
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
@@ -360,7 +379,7 @@ class Schedule:
             return base * self.rng.uniform(0.5, 1.5)
         self.failures = 0
         if result.outcome is Outcome.OVER_CAP:
-            now = now.astimezone(timezone.utc)
+            now = now.astimezone(UTC)
             midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
             return (midnight - now).total_seconds() + self.rng.uniform(0.0, 3600.0)
         return self.interval * self.rng.uniform(0.9, 1.1)
@@ -441,7 +460,7 @@ class SyncWorker:
                 client = make_client(self.config, self._stop)
                 cache = IconCache(self.config.icon_dir)
                 keys = verify.load_public_keys(self.config.public_keys)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 self.events.put(SyncFinished(SyncResult(Outcome.FAILED, None, reason=f"{type(exc).__name__}: {exc}")))
                 return
             self._loop(conn, client, cache, keys)
@@ -471,7 +490,7 @@ class SyncWorker:
                     path = cache.fetch(client, kind, sha)
                 except Stopped:
                     break
-                except Exception:
+                except Exception:  # noqa: BLE001
                     path = None
                 finally:
                     with self._lock:
@@ -482,7 +501,7 @@ class SyncWorker:
         try:
             result = sync_once(conn, client, cache, keys=keys, app_version=self.config.app_version,
                                tmp_dir=self.config.snapshot_tmp_dir, now=self._now, emit=self.events.put)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             result = SyncResult(Outcome.FAILED, _safe_revision(conn), reason=f"{type(exc).__name__}: {exc}")
         self.events.put(SyncFinished(result))
         return result
