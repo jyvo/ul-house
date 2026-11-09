@@ -1,0 +1,27 @@
+name: contract
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 21 * * *"
+permissions:
+  contents: read
+  issues: write
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --group build --group dev --group api
+      - name: Protocol and compatibility tests
+        run: uv run --locked --group build --group dev --group api python -m pytest tests/test_protocol.py tests/test_compat.py --no-fetch -p no:cacheprovider
+      - name: Canary
+        run: uv run --locked --group build --group dev --group api python -m pytest -m live tests/test_schema_drift.py -p no:cacheprovider
+      - name: Issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: gh issue create --title "Contract or canary check failed" --body "See $RUN_URL"

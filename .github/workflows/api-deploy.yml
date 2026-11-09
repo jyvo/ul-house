@@ -1,0 +1,41 @@
+name: api-deploy
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/**"
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --group api --group build
+      - name: API tests
+        run: uv run --locked --group api --group build python -m pytest api/tests -p no:cacheprovider
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: api-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --group api --group build
+      - name: Deploy the Worker
+        working-directory: api/worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GIT_SHA: ${{ github.sha }}
+        run: uv run pywrangler deploy --var "API_COMMIT:$GIT_SHA"
+      - name: Conformance suite against the deployed API
+        env:
+          UL_HOUSE_API_BASE_URL: ${{ vars.UL_HOUSE_API_BASE }}
+          UL_HOUSE_API_EXPECTED_COMMIT: ${{ github.sha }}
+        run: uv run --locked --group api --group build python -m pytest api/tests -m live -p no:cacheprovider
