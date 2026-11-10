@@ -1,6 +1,6 @@
 """cloudflare python worker entry (plain handler without fastapi), importable only inside workerd"""
-from workers import WorkerEntrypoint, Response # type: ignore[import-not-found]
 from syncapi.plain import handle
+from workers import Response, WorkerEntrypoint  # type: ignore[import-not-found]
 
 
 class Default(WorkerEntrypoint):

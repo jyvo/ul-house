@@ -39,12 +39,12 @@ _PACK_RE = re.compile(PACK)
 
 _ROUTES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"/v1/version"), "version"),
-    (re.compile(rf"/v1/manifests/(?P<revision>[^/]*)"), "manifest"),
-    (re.compile(rf"/v1/updates/(?P<from_revision>[^/]*)"), "updates"),
-    (re.compile(rf"/v1/snapshots/(?P<revision>[^/]*)"), "snapshot"),
-    (re.compile(rf"/v1/icons/packs/(?P<name>[^/]*)"), "pack"),
-    (re.compile(rf"/v1/icons/(?P<kind>[^/]*)/(?P<sha256>[^/]*)"), "icon"),
-    (re.compile(rf"/v1/lineage/(?P<revision>[^/]*)"), "lineage"),
+    (re.compile(r"/v1/manifests/(?P<revision>[^/]*)"), "manifest"),
+    (re.compile(r"/v1/updates/(?P<from_revision>[^/]*)"), "updates"),
+    (re.compile(r"/v1/snapshots/(?P<revision>[^/]*)"), "snapshot"),
+    (re.compile(r"/v1/icons/packs/(?P<name>[^/]*)"), "pack"),
+    (re.compile(r"/v1/icons/(?P<kind>[^/]*)/(?P<sha256>[^/]*)"), "icon"),
+    (re.compile(r"/v1/lineage/(?P<revision>[^/]*)"), "lineage"),
 )
 
 
@@ -244,7 +244,7 @@ def strong_etag(data: bytes) -> str:
 
 
 def _strip_weak(tag: str) -> str:
-    return tag[2:] if tag.startswith("W/") else tag
+    return tag.removeprefix("W/")
 
 
 def etag_matches(if_none_match: str | None, etag: str) -> bool:

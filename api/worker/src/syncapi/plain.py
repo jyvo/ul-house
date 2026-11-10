@@ -33,7 +33,7 @@ def _header(headers: Any, name: str) -> str | None:
         return None
     try:
         value = headers.get(name)
-    except Exception:
+    except Exception:  # noqa: BLE001
         value = None
     if value is not None:
         return str(value)
@@ -41,7 +41,7 @@ def _header(headers: Any, name: str) -> str | None:
         for key, val in headers.items():
             if str(key).lower() == name:
                 return str(val)
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
     return None
 
@@ -147,5 +147,5 @@ async def handle(method: str, url: str, headers: Mapping[str, str], env: Any) ->
         if response is None:
             return _requires_snapshot(commit, pointer, plan.from_revision, "package_missing", inm)
         return response
-    except Exception:
+    except Exception:  # noqa: BLE001
         return _error(commit, 500, "internal", "internal error")

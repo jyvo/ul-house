@@ -14,7 +14,7 @@ __all__ = ["R2PubStore", "cancel_body", "is_missing"]
 def _jsnull() -> object | None:
     try:
         from pyodide.ffi import jsnull  # type: ignore[import-not-found]
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None
     return jsnull
 
@@ -35,7 +35,7 @@ async def cancel_body(obj: object) -> None:
         cancel = obj.body.cancel()  # type: ignore[attr-defined]
         if inspect.isawaitable(cancel):
             await cancel
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
 
