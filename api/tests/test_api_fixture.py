@@ -9,12 +9,11 @@ import sys
 import zipfile
 from pathlib import Path
 
+import make_pub
 import pytest
+from api_invariants import check_current, check_manifest, check_pack, check_package
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-
-import make_pub
-from api_invariants import check_current, check_manifest, check_package, check_pack
 
 MAKE_PUB = Path(make_pub.__file__)
 
@@ -183,7 +182,7 @@ def test_an_added_property_breaks_the_signature(store, pub):
 
 def test_cli_writes_the_same_tree(tmp_path, store):
     out = tmp_path / "cli"
-    result = subprocess.run([sys.executable, str(MAKE_PUB), str(out)], capture_output=True, text=True, timeout=60)
+    result = subprocess.run([sys.executable, str(MAKE_PUB), str(out)], check=False, capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stderr
     assert Path(result.stdout.strip()) == out
     assert tree(out) == tree(store.root)

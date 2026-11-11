@@ -36,7 +36,7 @@ class UvicornThread:
     def base_url(self) -> str:
         return f"http://127.0.0.1:{self.sock.getsockname()[1]}"
 
-    def __enter__(self) -> "UvicornThread":
+    def __enter__(self) -> UvicornThread:
         self.thread.start()
         deadline = time.monotonic() + 15
         while not self.server.started:

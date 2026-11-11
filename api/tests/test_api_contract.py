@@ -8,9 +8,8 @@ import zipfile
 from pathlib import Path
 
 import pytest
-from jsonschema import Draft202012Validator
-
 from api_common import SCHEMA_NAMES, SCHEMAS
+from jsonschema import Draft202012Validator
 
 SHARED_DEFS = ("revision", "schema_version", "sha256", "timestamp", "commit")
 ID_BASE = "https://schemas.ul-house.invalid/api/v1/"
@@ -524,7 +523,7 @@ def test_mutation_labels_are_unique():
 
 
 def test_regex_patterns_in_schemas_compile(contract):
-    for name, schema in contract.schemas.items():
+    for schema in contract.schemas.values():
         for ref in re.findall(r'"pattern":\s*"((?:[^"\\]|\\.)*)"', json.dumps(schema)):
             re.compile(json.loads(f'"{ref}"'))
 

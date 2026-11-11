@@ -61,7 +61,7 @@ def render(store_root: Path, out_dir: Path) -> dict:
             copy(f"/v1/icons/{kind_dir.name}/{path.stem}", f"icons/{kind_dir.name}/{path.name}", PNG, IMMUTABLE)
 
     extra = {"X-UL-To-Revision": str(n)}
-    for from_revision in range(0, n + 2):
+    for from_revision in range(n + 2):
         request_path = f"/v1/updates/{from_revision}"
         if from_revision >= n:
             put(request_path, _error("no_update", "no newer revision"), status=404, content_type=JSON, cache_control=NO_STORE)
@@ -136,7 +136,7 @@ class StaticServer:
         host, port = self.httpd.server_address[:2]
         return f"http://{host}:{port}"
 
-    def __enter__(self) -> "StaticServer":
+    def __enter__(self) -> StaticServer:
         self.thread.start()
         return self
 
