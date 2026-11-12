@@ -134,7 +134,7 @@ class TestEvolution:
         assert monster.enlightening.before is None
         assert monster.enlightening.gear_materials          # after-only dl still registers kind
 
-    def test_duplicate_before_is_an_error(self):
+    def test_duplicate_before_is_an_error(self, soups):
         html = insert_after_label_dl(
             cached_path("4435013").read_bytes(), "Before Enlightening",
             evo_dl("Before Enlightening", "4435001", "One") + evo_dl("Before Enlightening", "4435002", "Two"))

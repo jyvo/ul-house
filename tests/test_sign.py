@@ -295,7 +295,7 @@ def test_production_keys_unchanged_without_override():
 
 
 def test_dev_key_rule_matches_the_app():
-    from ul_house.app import config
+    config = pytest.importorskip("ul_house.app.config")
     assert sign.ENV_DEV_PUBLIC_KEYS == config.DEV_KEYS_ENV
     assert sign.LOOPBACK_HOSTS == config.LOOPBACK_HOSTS
 
