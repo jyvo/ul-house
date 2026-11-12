@@ -1,15 +1,14 @@
 """The icon cache, verified by sha256."""
-import hashlib
 import json
 import os
 import threading
 import zipfile
 from pathlib import Path
 
-import pytest
-
 import pub_fixture as pf
+import pytest
 from local_server import LocalServer, Reply
+
 from ul_house.sync import icons, verify
 from ul_house.sync.errors import IconError, VerificationError
 

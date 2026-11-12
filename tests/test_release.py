@@ -12,9 +12,8 @@ from pathlib import Path
 
 import duckdb
 import pytest
-
 import release_fixtures as F
-from release_fixtures import World, cleanup_tmp
+from release_fixtures import World
 
 from ul_house import ids
 from ul_house.build import release
@@ -796,7 +795,7 @@ def test_alias_changes_no_game_row(replayable, tmp_path):
 
 def test_the_reference_applier_never_uses_insert_or_replace():
     source = Path(inspect.getsourcefile(release)).read_text()
-    assert not re.search(r"OR\s+REPLACE", source, re.I)
+    assert not re.search(r"OR\s+REPLACE", source, re.IGNORECASE)
     assert "ON CONFLICT" in source.upper()
 
 
@@ -884,7 +883,7 @@ def test_packs_are_deterministic_across_independent_builds(tmp_path):
     def script(root):
         w, decisions = build(root, lambda w: w.upsert_equipment("1005", name="Echo", icon=F.png("beta")))
         return w, decisions[-1]
-    (wa, da), (wb, db) = script(tmp_path / "a"), script(tmp_path / "b")
+    (_, da), (_, db) = script(tmp_path / "a"), script(tmp_path / "b")
     for rel in ("icons/packs/base-2.zip", "icons/packs/delta-1-2.zip", "snapshots/unison-2.sqlite.gz",
                 "updates/1-2.json.gz", "lineage/2.json.gz"):
         assert (da.bundle_dir / "pub" / rel).read_bytes() == (db.bundle_dir / "pub" / rel).read_bytes(), rel
@@ -1459,7 +1458,7 @@ def test_d_int_1_the_shared_rows_only_a_carried_uid_uses_come_along(tmp_path):
     assert _mart_count(w, "SELECT count(*) FROM item WHERE uid = '9001'") == 0
     assert _mart_count(w, f"SELECT count(*) FROM icon WHERE sha256 = '{icon}'") == 0
     assert _mart_count(w, f"SELECT count(*) FROM skill_effect WHERE effect_id IN {made['effects']}") == 0
-    assert _mart_count(w, f"SELECT count(*) FROM effect_link WHERE owner_kind IN ('proc', 'weapon_ability')") == 0
+    assert _mart_count(w, "SELECT count(*) FROM effect_link WHERE owner_kind IN ('proc', 'weapon_ability')") == 0
     assert _mart_count(w, "SELECT count(*) FROM item WHERE uid = '9002'") == 1          # unreferenced: stays
     # snapshot 2 holds them; FKs clean
     with _snap(w, None, tmp_path / "s1.sqlite", rev=1) as s1, _snap(w, d2, tmp_path / "s2.sqlite") as s2:

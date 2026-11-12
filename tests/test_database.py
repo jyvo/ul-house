@@ -2,9 +2,9 @@
 import sqlite3
 import threading
 
+import pub_fixture as pf
 import pytest
 
-import pub_fixture as pf
 from ul_house import database
 from ul_house.database import entities
 

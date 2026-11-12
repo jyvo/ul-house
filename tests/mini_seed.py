@@ -8,9 +8,9 @@ from html import escape
 from pathlib import Path
 
 import pytest
-
 from fetch_fixtures import cached_path, missing
 from local_server import LocalServer, Reply
+
 from ul_house.config import LIST_SOURCES, NEW_RELEASE_PATH, detail_path
 from ul_house.crawl.run import Lineage, crawl
 from ul_house.http.client import Client

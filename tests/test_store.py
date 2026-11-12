@@ -452,7 +452,7 @@ class TestAssets:
         assert store.asset_validators(PNG) is None
         assert store.record_asset(PNG, 200, b"\x89PNGdata", '"e"', "lm", "image/png", run_id=run) is True
         row = store.asset(PNG)
-        assert "body" not in row.keys()
+        assert "body" not in row.keys()  # noqa: SIM118 -- sqlite3.Row `in` tests values, not names
         assert store.asset_body(PNG) == b"\x89PNGdata"
         assert row["sha256"] == hashlib.sha256(b"\x89PNGdata").hexdigest()
         assert row["changed_at"] == row["fetched_at"] and row["changed_run_id"] == run

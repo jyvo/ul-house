@@ -1,14 +1,13 @@
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import requests
+from local_server import LocalServer, RawServer, Reply
 
-from local_server import LocalServer, Reply, RawServer
 from ul_house.config import USER_AGENT
 from ul_house.http.client import RETRY_STATUSES, Client, FetchError, Stopped, Throttle, retry_after_seconds
-
 
 OK_BODY = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
 SHORT_BODY = b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\nConnection: close\r\n\r\nonly-ten!!"
@@ -156,8 +155,8 @@ class TestResponseHeadersDefault:
     def test_headers_default_to_empty_and_do_not_affect_equality(self):
         from ul_house.http.client import Response
 
-        fields = dict(path="/a.html", status=200, body=b"x", etag=None, last_modified=None,
-                      content_type=None, final_url="http://h/a.html")
+        fields = {"path": "/a.html", "status": 200, "body": b"x", "etag": None, "last_modified": None,
+                      "content_type": None, "final_url": "http://h/a.html"}
         bare = Response(**fields)
         assert len(bare.headers) == 0 and bare.headers.get("X-Anything") is None
         assert bare == Response(**fields, headers={"X-API-Commit": "abc"})
@@ -212,7 +211,7 @@ class TestRetries:
             assert client.get("/a.html").body == b"fast"
 
     def test_retry_after_parsing(self):
-        now = datetime(2026, 9, 27, tzinfo=timezone.utc)
+        now = datetime(2026, 9, 27, tzinfo=UTC)
         later = (now + timedelta(seconds=30)).strftime("%a, %d %b %Y %H:%M:%S GMT")
         assert retry_after_seconds("7") == 7.0
         assert retry_after_seconds(later, now) == pytest.approx(30)
@@ -338,7 +337,7 @@ class TestRetryAfterWithoutZone:
     """HTTP-date with no zone is read as GMT instead of raising TypeError"""
 
     def test_naive_date(self):
-        now = datetime(2026, 9, 30, 10, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2026, 9, 30, 10, 0, 0, tzinfo=UTC)
         assert retry_after_seconds("Wed, 30 Sep 2026 10:00:30", now) == pytest.approx(30)
 
     def test_naive_date_in_a_live_retry(self, server):

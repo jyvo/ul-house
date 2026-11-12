@@ -3,8 +3,8 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-
 from catalog_fixtures import CATALOG
+
 from ul_house import ids
 from ul_house.database import entities
 from ul_house.database.entities import (
@@ -240,13 +240,13 @@ def test_applies_twice(db):
 
 
 def test_sections_in_order():
-    assert re.findall(r"^-- @section (\w+)$", SCHEMA, flags=re.M) == list(SECTION_NAMES)
-    preamble = re.split(r"^-- @section \w+$", SCHEMA, flags=re.M)[0]
+    assert re.findall(r"^-- @section (\w+)$", SCHEMA, flags=re.MULTILINE) == list(SECTION_NAMES)
+    preamble = re.split(r"^-- @section \w+$", SCHEMA, flags=re.MULTILINE)[0]
     assert sql_statements(preamble).strip() == ""
     assert re.search(r"dataset_schema_version:\s*1\b", SCHEMA)
     code = sql_statements(SCHEMA)
     for line in code.splitlines():
-        assert not re.match(r"^\s*(PRAGMA|BEGIN|COMMIT|END|ROLLBACK|SAVEPOINT|RELEASE)\b", line, re.I), line
+        assert not re.match(r"^\s*(PRAGMA|BEGIN|COMMIT|END|ROLLBACK|SAVEPOINT|RELEASE)\b", line, re.IGNORECASE), line
     assert "user_version" not in code.lower()
 
 

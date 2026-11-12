@@ -2,13 +2,12 @@
 import dataclasses
 
 import pytest
-
-from ul_house.models.equipment import DefensiveGear, Monster, Weapon
-from ul_house.parse import UnparseablePage, parse, parse_html
-
 from catalog_fixtures import SSR_REFORGE_UID, catalog_params
 from fetch_fixtures import cached_path
 from mini_seed import evo_dl, insert_after_label_dl
+
+from ul_house.models.equipment import DefensiveGear, Monster, Weapon
+from ul_house.parse import UnparseablePage, parse, parse_html
 
 
 @pytest.mark.parametrize("uid, expected", catalog_params())

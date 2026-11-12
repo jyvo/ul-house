@@ -266,10 +266,10 @@ class TestClamp:
         assert result.settings.names_excluded == ("awakening ninoyu", "fatewoven")
 
     @pytest.mark.parametrize("bad", [
-        dict(cost_min="42"), dict(cost_max=True), dict(evolution_policy="keep"),
+        {"cost_min": "42"}, {"cost_max": True}, {"evolution_policy": "keep"},
     ])
     def test_settings_types(self, bad):
-        fields = dict(cost_min=42, cost_max=98, rarity_include=("UR",)) | bad
+        fields = {"cost_min": 42, "cost_max": 98, "rarity_include": ("UR",)} | bad
         (field,) = bad
         with pytest.raises(ScopeError, match=field):
             UserSettings(**fields)

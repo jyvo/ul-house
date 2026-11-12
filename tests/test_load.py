@@ -20,6 +20,7 @@ duckdb = pytest.importorskip("duckdb")
 from catalog_fixtures import CATALOG
 from fetch_fixtures import UIDS
 from mini_seed import served_html
+
 from ul_house import rows as R
 from ul_house.build import load
 from ul_house.parse import PARSER_VERSION
@@ -41,8 +42,8 @@ def empty_records(**tables) -> R.Records:
 
 
 def equipment(uid="1000001", **over) -> R.StgEquipment:
-    values = dict(source_uid=uid, source_hash="h" * 64, model_class="weapon", name="name", rarity="ur",
-                  gear_type="sword", cost=40, element_id="fire", max_level=100)
+    values = {"source_uid": uid, "source_hash": "h" * 64, "model_class": "weapon", "name": "name", "rarity": "ur",
+                  "gear_type": "sword", "cost": 40, "element_id": "fire", "max_level": 100}
     values.update(over)
     return R.StgEquipment(**values)
 
@@ -125,7 +126,7 @@ class TestRecordTables:
         con = raw_con()
         records = empty_records()
         load.load_records(con, records)
-        for table, _ in records.tables().items():
+        for table in records.tables():
             record_type = R.RECORD_TYPES[table]
             expected = [(name, load.RECORD_TO_DUCKDB[sql_type], nullable)
                         for name, sql_type, nullable in R.columns(record_type)]
@@ -172,7 +173,7 @@ TRICKY = [
     "quote \" and backslash \\ and 'single'",
     "ctl \x01\x02\x7f",
     "bidi ‮ mark",
-    "zero​width",
+    "zero\u200bwidth",
     "NULL",
     "null",
 ]
@@ -600,16 +601,16 @@ class TestImports:
         code = ("import sys; import ul_house.build; "
                 "bad = [m for m in ('dbt', 'duckdb', 'requests') if m in sys.modules]; "
                 "sys.exit(1 if bad else 0)")
-        assert subprocess.run([sys.executable, "-c", code], cwd=ROOT).returncode == 0
+        assert subprocess.run([sys.executable, "-c", code], check=False, cwd=ROOT).returncode == 0
 
     def test_importing_the_gate_loads_no_dbt(self):
         code = ("import sys; import ul_house.build.gate; "
                 "bad = [m for m in ('dbt', 'requests') if m in sys.modules]; "
                 "sys.exit(1 if bad else 0)")
-        assert subprocess.run([sys.executable, "-c", code], cwd=ROOT).returncode == 0
+        assert subprocess.run([sys.executable, "-c", code], check=False, cwd=ROOT).returncode == 0
 
     def test_importing_the_dbt_wrapper_loads_no_dbt(self):
         code = ("import sys; import ul_house.build.dbt; "
                 "bad = [m for m in ('dbt', 'requests') if m in sys.modules]; "
                 "sys.exit(1 if bad else 0)")
-        assert subprocess.run([sys.executable, "-c", code], cwd=ROOT).returncode == 0
+        assert subprocess.run([sys.executable, "-c", code], check=False, cwd=ROOT).returncode == 0

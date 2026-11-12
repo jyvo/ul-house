@@ -3,11 +3,10 @@ import itertools
 from collections import namedtuple
 
 import pytest
-
 from fetch_fixtures import UIDS, cached_path, missing
 from local_server import LocalServer, RawServer, Reply
+
 from ul_house.crawl.assets import (
-    IconTarget,
     fetch_icon,
     fetch_icons,
     icon_targets,

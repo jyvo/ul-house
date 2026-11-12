@@ -1,7 +1,6 @@
 import pytest
-from bs4 import BeautifulSoup
-
 import sample_catalog
+from bs4 import BeautifulSoup
 from fetch_fixtures import cached_path
 
 CATALOG = {

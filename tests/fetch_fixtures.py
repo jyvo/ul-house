@@ -82,7 +82,7 @@ def main() -> int:
     parser.add_argument("--force", action="store_true", help="re-fetch pages already cached")
     args = parser.parse_args()
 
-    failed = ensure_cached(force=args.force)
+    ensure_cached(force=args.force)
     still_missing = missing()
     if still_missing:
         print(f"\n{len(still_missing)} page(s) unavailable: {', '.join(still_missing)}", file=sys.stderr)

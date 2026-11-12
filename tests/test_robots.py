@@ -1,6 +1,6 @@
 import pytest
-
 from local_server import LocalServer, Reply
+
 from ul_house.http import robots
 from ul_house.http.client import Client
 
@@ -108,7 +108,7 @@ class TestReviewFixes:
             assert robots.load(client).state == "absent"
 
     def test_byte_order_mark_doesntt_hide_first_group(self, server):
-        server.route("/robots.txt", Reply(200, "﻿User-agent: *\nDisallow: /en/\n".encode("utf-8"),
+        server.route("/robots.txt", Reply(200, "﻿User-agent: *\nDisallow: /en/\n".encode(),
                                           {"Content-Type": "text/plain"}))
         with client_for(server) as client:
             gate = robots.load(client)

@@ -11,10 +11,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-import yaml
-
 import release_fixtures as F
-from release_fixtures import FakeS3Client, World, base_step, cleanup_tmp
+import yaml
+from release_fixtures import FakeS3Client, World, base_step
 
 from ul_house.build import cli, release, sign
 from ul_house.build.store import Layout, LocalStore, R2Store, sha256_file
@@ -97,7 +96,7 @@ def test_allow_dirty_with_the_store_taken_from_the_environment(ci_env, monkeypat
 
 
 def test_the_module_runs_as_a_script():
-    done = subprocess.run([sys.executable, "-m", "ul_house.build", "--help"], cwd=REPO, capture_output=True,
+    done = subprocess.run([sys.executable, "-m", "ul_house.build", "--help"], check=False, cwd=REPO, capture_output=True,
                           text=True, timeout=120)
     assert done.returncode == 0 and "usage" in done.stdout.lower()
 
@@ -203,7 +202,7 @@ def test_crawl_exit_codes_map(crawl_env, code, expected):
 
 def test_crawl_never_imports_the_crawler_into_the_build_process():
     source = (REPO / "src" / "ul_house" / "build" / "cli.py").read_text()
-    assert not re.search(r"^\s*(from|import)\s+ul_house\.(crawl|http)\b", source, re.M)
+    assert not re.search(r"^\s*(from|import)\s+ul_house\.(crawl|http)\b", source, re.MULTILINE)
 
 
 # stages
@@ -295,7 +294,7 @@ def test_gate_error_writes_an_outcome(tmp_path, ci_env, fake_gate):
 def test_gate_summary_line(tmp_path, ci_env, fake_gate):
     fake_gate["level"] = "warning"
     run("gate", "--work", tmp_path / "work")
-    assert re.search(r"^Gate\s+warning", ci_env.summary.read_text(), re.M)
+    assert re.search(r"^Gate\s+warning", ci_env.summary.read_text(), re.MULTILINE)
 
 
 # all stages
@@ -368,8 +367,8 @@ def test_release_then_publish_publishes_revision_one(tmp_path, signing, ci_env):
     outcome = json.loads((w.work / "outcome.json").read_text())
     assert outcome["outcome"] == "published" and outcome["revision"] == 1
     text = ci_env.summary.read_text()
-    assert re.search(r"^Release\s+revision 1", text, re.M)
-    assert re.search(r"^Publish\s+published", text, re.M) and "current.json" in text
+    assert re.search(r"^Release\s+revision 1", text, re.MULTILINE)
+    assert re.search(r"^Publish\s+published", text, re.MULTILINE) and "current.json" in text
 
 
 def dev_key_world(tmp_path, signing, monkeypatch):
@@ -443,7 +442,7 @@ def test_a_blocker_holds_the_candidate_and_exits_zero(tmp_path, signing, ci_env)
     assert "outcome=held" in gh_outputs(ci_env)
     assert (w.store.root / "candidates" / "2" / "bundle.json").is_file()
     assert json.loads((w.store.root / "pub" / "current.json").read_bytes())["revision"] == 1
-    assert re.search(r"^Publish\s+held", ci_env.summary.read_text(), re.M)
+    assert re.search(r"^Publish\s+held", ci_env.summary.read_text(), re.MULTILINE)
 
 
 def test_no_changes_is_a_heartbeat(tmp_path, signing, ci_env):
@@ -455,7 +454,7 @@ def test_no_changes_is_a_heartbeat(tmp_path, signing, ci_env):
     assert run("publish", *stage_args(w, "--skip-check", "--allow-dirty")) == 0
     assert "outcome=heartbeat" in gh_outputs(ci_env)
     assert json.loads((w.store.root / "pub" / "current.json").read_bytes())["revision"] == 1
-    assert re.search(r"^Release\s+no changes", ci_env.summary.read_text(), re.M)
+    assert re.search(r"^Release\s+no changes", ci_env.summary.read_text(), re.MULTILINE)
 
 
 def test_approve_publishes_the_held_candidate(tmp_path, signing, ci_env):
@@ -676,7 +675,7 @@ def test_quality_workflow_ignores_every_test_that_needs_the_build_group():
     text = " ".join(all_runs(load("quality")))
     heavy = [p.name for p in sorted((REPO / "tests").glob("test_*.py"))
              if re.search(r"^\s*(import duckdb|from duckdb|import release_fixtures|from release_fixtures)",
-                          p.read_text(encoding="utf-8"), re.M)]
+                          p.read_text(encoding="utf-8"), re.MULTILINE)]
     assert "test_object_store.py" in heavy
     for name in heavy:
         assert f"--ignore=tests/{name}" in text, name

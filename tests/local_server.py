@@ -91,7 +91,7 @@ class RawServer:
     """serves exact bytes, one payload per connection (last repeats)"""
 
     def __init__(self, payloads):
-        import socket       #might look to lazy load
+        import socket  #might look to lazy load
 
         self.payloads = list(payloads)
         self.connections = 0
@@ -130,7 +130,7 @@ class RawServer:
             finally:
                 conn.close()
 
-    def __enter__(self) -> "RawServer":
+    def __enter__(self) -> RawServer:
         self.thread.start()
         return self
 
