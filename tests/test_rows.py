@@ -5,30 +5,28 @@ from dataclasses import FrozenInstanceError, fields
 from pathlib import Path
 
 import pytest
-
+import sample_catalog as sc
 from catalog_fixtures import CATALOG, SSR_REFORGE_UID, catalog_params
 from fetch_fixtures import UIDS, cached_path, missing
 from mini_seed import evo_dl, insert_after_label_dl
+
 from ul_house import ids
 from ul_house import rows as R
 from ul_house.data.elements import ELEMENT
-from ul_house.models.equipment import DefensiveGear, EquipmentRef, ItemRef, Monster, Weapon
+from ul_house.models.equipment import DefensiveGear, EquipmentRef, ItemRef, Monster, Stats, Weapon
 from ul_house.models.gear_evolution import Awakening, Enlightening, GearEvoMaterial, ItemEvoMaterial, Reforge
 from ul_house.models.gear_mechanism import (
     HiddenPotential,
+    MonsterSkill,
     PassiveSkill,
     PotentialLevel,
     Proc,
     ProcActivation,
     ProcScaling,
     SkillEffect,
-    MonsterSkill,
     WeaponAbility,
 )
-from ul_house.models.equipment import Stats
 from ul_house.parse import PARSER_VERSION
-
-import sample_catalog as sc
 
 GOLDEN = Path(__file__).parent / "golden"
 HASH_ID_FILE = GOLDEN / "hash_ids.json"
@@ -150,15 +148,15 @@ def ref(uid, name):
 
 def rebuild(records, uid):
     (eq,) = only(records, "stg_equipment", uid)
-    base = dict(
-        uid=uid,
-        name=eq.name,
-        rarity=eq.rarity,
-        gear_type=eq.gear_type,
-        cost=eq.cost,
-        element=ELEMENT[eq.element_id] if eq.element_id is not None else None,
-        max_level=eq.max_level,
-    )
+    base = {
+        "uid": uid,
+        "name": eq.name,
+        "rarity": eq.rarity,
+        "gear_type": eq.gear_type,
+        "cost": eq.cost,
+        "element": ELEMENT[eq.element_id] if eq.element_id is not None else None,
+        "max_level": eq.max_level,
+    }
     stats = {}
     for r in only(records, "stg_stat", uid):
         stats.setdefault(r.label_ordinal, (r.label, {}))[1][r.tier_ordinal] = (r.tier, r.value)
@@ -181,7 +179,7 @@ def rebuild(records, uid):
             ItemEvoMaterial(quantity=m.quantity, item=ItemRef(m.ref_uid, m.ref_name))
             for m in mats if m.material_kind == "item"
         )
-        common = dict(before=ref(r.before_uid, r.before_name))
+        common = {"before": ref(r.before_uid, r.before_name)}
         if r.kind == "reforge":
             evo["reforge"] = Reforge(material=gear or None, **common)
         elif r.kind == "awakening":
@@ -731,7 +729,7 @@ def test_owner_id_encoding():
     assert ids.id_to_text(ids.proc_id(p.name, p.effect_hash)) == "4068123614585592249"
     (wa,) = only(records, "stg_weapon_ability", sc.UR_WEAPON.uid)
     assert wa.uid == "2130"
-    skill = [r for r in only(records, "stg_monster_skill", sc.FATEWOVEN_MON.uid) if r.ordinal == 1][0]
+    skill = next(r for r in only(records, "stg_monster_skill", sc.FATEWOVEN_MON.uid) if r.ordinal == 1)
     assert ids.id_to_text(ids.skill_id(skill.source_uid, skill.ordinal)) == "2018827732041611503"
     (ps,) = only(records, "stg_passive_skill", sc.MON_PASSIVE.uid)
     assert ids.id_to_text(ids.passive_id(ps.name, ps.effect_hash)) == "7736285657851726282"

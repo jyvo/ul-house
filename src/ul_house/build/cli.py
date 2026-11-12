@@ -294,7 +294,7 @@ def _stage_parse(args: argparse.Namespace) -> int:
     from ul_house.build import load
     try:
         load.load_seed(work / "seed.sqlite", work)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         return _fail(f"parse failed: {type(exc).__name__}: {exc}")
     return EXIT_OK
 
@@ -314,7 +314,7 @@ def _stage_model(args: argparse.Namespace) -> int:
             catalog_commit=_git_line("log", "-1", "--format=%H", "--", CATALOG_REL) or "unknown",
             policy_commit=_git_line("log", "-1", "--format=%H", "--", POLICY_REL) or "unknown",
             dirty=build.dirty)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         return _fail(f"model failed: {type(exc).__name__}: {exc}")
     print(f"transform run {run_id} for revision {revision}")
     return EXIT_OK
@@ -330,12 +330,12 @@ def _stage_gate(args: argparse.Namespace) -> int:
         if callable(writer):
             try:
                 writer(decision, work)                     # gate file and rows
-            except Exception as exc:                       # already recorded; keep file
+            except Exception as exc:                       # already recorded; keep file  # noqa: BLE001
                 print(f"gate: obs rows not written ({type(exc).__name__}: {exc})", file=sys.stderr)
         (work / "gate.json").write_text(
             json.dumps(decision.to_mapping(), sort_keys=True, separators=(",", ":"), allow_nan=False) + "\n",
             encoding="utf-8")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         return _fail(f"gate failed: {type(exc).__name__}: {exc}")
     _append_summary("gate", work)
     if decision.level == "error":
@@ -547,7 +547,7 @@ def _stage_seed_push(args: argparse.Namespace) -> int:
         sha, size = sha256_file(copy), copy.stat().st_size
         try:
             existing = store.head(Layout.SEED_CURRENT)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return _fail(f"seed-push failed: {type(exc).__name__}: {exc}")
         if existing is not None:
             same = "unknown" if existing.sha256 is None else ("no" if existing.sha256 != sha else "yes")
@@ -563,7 +563,7 @@ def _stage_seed_push(args: argparse.Namespace) -> int:
         try:
             store.put_file(Layout.SEED_CURRENT, copy, content_type=SEED_CONTENT_TYPE)
             verify_object(store, Layout.SEED_CURRENT, sha)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return _fail(f"seed-push failed: {type(exc).__name__}: {exc}")
     print(f"uploaded and verified {plan}")
     return EXIT_OK

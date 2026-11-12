@@ -3,11 +3,10 @@ import dataclasses
 import json
 import re
 import typing
-from pathlib import Path
-
-import pytest
 
 import pub_fixture as pf
+import pytest
+
 from ul_house import ids
 from ul_house.database import entities
 from ul_house.sync import protocol, verify
@@ -142,7 +141,7 @@ def test_dataclass_mirrors_its_schema(cls, name, ptr):
     assert without_default | literal_tag >= required
     assert required >= without_default, f"{cls.__name__}: fields without a default that the schema does not require"
     assert node.get("additionalProperties") is False
-    for fname, field in fields.items():
+    for fname in fields:
         prop = resolve(props[fname], root)
         kind, optional = annotation_kind(hints[fname])
         types = json_types(prop)
@@ -224,7 +223,7 @@ def test_api_error_mirrors_openapi():
     if not openapi.exists():
         pytest.skip("openapi.yaml not present yet")
     error = yaml.safe_load(openapi.read_text())["components"]["schemas"]["Error"]
-    assert set(dataclasses.fields(protocol.ApiError)[i].name for i in range(2)) == set(error["properties"]) == set(error["required"])
+    assert {dataclasses.fields(protocol.ApiError)[i].name for i in range(2)} == set(error["properties"]) == set(error["required"])
     assert protocol.ApiError.from_json({"error": "no_update", "message": "x"}).error == "no_update"
 
 

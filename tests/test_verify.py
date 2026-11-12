@@ -3,11 +3,11 @@ import base64
 import dataclasses
 import gzip
 import json
-from datetime import datetime, timedelta, timezone
-
-import pytest
+from datetime import UTC, datetime, timedelta
 
 import pub_fixture as pf
+import pytest
+
 from ul_house.sync import keys, protocol, verify
 from ul_house.sync.errors import ProtocolError, Refused, VerificationError
 
@@ -220,7 +220,7 @@ def test_check_supported():
 
 def test_is_stale_boundary():
     expires = "2026-10-18T00:00:00Z"
-    at = datetime(2026, 10, 18, tzinfo=timezone.utc)
+    at = datetime(2026, 10, 18, tzinfo=UTC)
     assert verify.is_stale(expires, at) is False
     assert verify.is_stale(expires, at + timedelta(seconds=1)) is True
     assert verify.is_stale(expires, at - timedelta(days=1)) is False

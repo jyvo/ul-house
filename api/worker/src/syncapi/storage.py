@@ -91,7 +91,7 @@ class LocalPubStore:
             resolved = path.resolve()
             if pub != resolved and pub not in resolved.parents:
                 return None
-            handle = open(path, "rb")
+            handle = open(path, "rb")  # noqa: ASYNC230
         except OSError:
             return None
         try:

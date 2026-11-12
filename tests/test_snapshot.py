@@ -1,15 +1,15 @@
 import hashlib
-from datetime import datetime, timezone
-
-import pytest
+from datetime import UTC, datetime
 
 import pub_fixture as pf
+import pytest
 from local_server import LocalServer, Reply
+
 from ul_house import database
 from ul_house.sync import apply, snapshot
 from ul_house.sync.errors import RevisionMismatch, SnapshotError, VerificationError
 
-FIXED_NOW = datetime(2026, 10, 5, 12, 30, 0, tzinfo=timezone.utc)
+FIXED_NOW = datetime(2026, 10, 5, 12, 30, 0, tzinfo=UTC)
 
 
 @pytest.fixture
@@ -343,7 +343,7 @@ def test_a_snapshot_that_is_not_newer_is_refused(db, tmp_path):
 def test_repair_reapplies_the_same_revision_and_updates_its_history_row(db, tmp_path):
     conn = db(1)
     package = pf.load_package(pf.make_package(1, 3))
-    apply.apply_package(conn, package[0], package_sha256=package[1], app_version="old", now=lambda: datetime(2026, 9, 1, tzinfo=timezone.utc))
+    apply.apply_package(conn, package[0], package_sha256=package[1], app_version="old", now=lambda: datetime(2026, 9, 1, tzinfo=UTC))
     assert conn.execute("SELECT kind FROM sync_history WHERE revision = 3").fetchone() == ("update",)
     # corrupt local
     conn.execute("UPDATE equipment SET cost = 999")

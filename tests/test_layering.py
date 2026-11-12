@@ -18,11 +18,11 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "src" / "ul_house"
 SCHEMA = PACKAGE / "database" / "schema.sql"
 
-DML_RE = re.compile(r"""\b(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+(?:\w+\.)?["`\[]?(\w+)""", re.I)
-REPOINT_RE = re.compile(r"""\bUPDATE\s+(?:\w+\.)?["`\[]?(inventory|saved_ref)["`\]]?\s+SET\s+uid\s*=\s*[^,]*?(?:\bWHERE\b|\bFROM\b|$)""", re.I | re.S)
-SAVED_REF_DELETE_RE = re.compile(r"""\bDELETE\s+FROM\s+(?:\w+\.)?["`\[]?saved_ref["`\]]?\s+WHERE\b""", re.I)
-SECTION_RE = re.compile(r"^-- @section (game|ledger|sync|user)$", re.M)
-CREATE_TABLE_RE = re.compile(r"^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)", re.I | re.M)
+DML_RE = re.compile(r"""\b(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+(?:\w+\.)?["`\[]?(\w+)""", re.IGNORECASE)
+REPOINT_RE = re.compile(r"""\bUPDATE\s+(?:\w+\.)?["`\[]?(inventory|saved_ref)["`\]]?\s+SET\s+uid\s*=\s*[^,]*?(?:\bWHERE\b|\bFROM\b|$)""", re.IGNORECASE | re.DOTALL)
+SAVED_REF_DELETE_RE = re.compile(r"""\bDELETE\s+FROM\s+(?:\w+\.)?["`\[]?saved_ref["`\]]?\s+WHERE\b""", re.IGNORECASE)
+SECTION_RE = re.compile(r"^-- @section (game|ledger|sync|user)$", re.MULTILINE)
+CREATE_TABLE_RE = re.compile(r"^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)", re.IGNORECASE | re.MULTILINE)
 
 
 def package_of(path: Path) -> list[str] | None:

@@ -1,8 +1,7 @@
 import pytest
 from bs4 import BeautifulSoup
-
+from catalog_fixtures import load_soup
 from fetch_fixtures import UIDS, ensure_cached, missing
-from catalog_fixtures import CATALOG, SSR_REFORGE_UID, load_soup, catalog_ids, catalog_params
 
 
 def pytest_configure(config):

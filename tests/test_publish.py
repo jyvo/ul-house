@@ -4,11 +4,9 @@ import re
 from datetime import timedelta
 from pathlib import Path
 
-import duckdb
 import pytest
-
 import release_fixtures as F
-from release_fixtures import FakeS3Client, FlakyStore, World, base_step, cleanup_tmp
+from release_fixtures import FakeS3Client, FlakyStore, World, base_step
 
 from ul_house.build import publish, sign
 from ul_house.build.publish import (
@@ -437,9 +435,9 @@ def test_a_newer_candidate_supersedes_an_unapproved_one(tmp_path):
 
 
 def approve_kwargs(w, tmp_path):
-    return dict(reason="reviewed the churn", approver="octocat", run_id="approve-run-9",
-                work_dir=tmp_path / "approve", signer=w.signer, trusted_keys=w.trusted_keys, clock=w.clock,
-                contract_dir=w.contract_dir)
+    return {"reason": "reviewed the churn", "approver": "octocat", "run_id": "approve-run-9",
+                "work_dir": tmp_path / "approve", "signer": w.signer, "trusted_keys": w.trusted_keys, "clock": w.clock,
+                "contract_dir": w.contract_dir}
 
 
 def test_approve_publishes_exactly_the_candidates_bytes(tmp_path):

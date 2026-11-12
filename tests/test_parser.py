@@ -2,13 +2,12 @@
 import dataclasses
 
 import pytest
-
-from ul_house.models.equipment import DefensiveGear, Monster, Weapon
-from ul_house.parse import UnparseablePage, parse, parse_html
-
 from catalog_fixtures import SSR_REFORGE_UID, catalog_params
 from fetch_fixtures import cached_path
 from mini_seed import evo_dl, insert_after_label_dl
+
+from ul_house.models.equipment import DefensiveGear, Monster, Weapon
+from ul_house.parse import UnparseablePage, parse, parse_html
 
 
 @pytest.mark.parametrize("uid, expected", catalog_params())
@@ -135,7 +134,7 @@ class TestEvolution:
         assert monster.enlightening.before is None
         assert monster.enlightening.gear_materials          # after-only dl still registers kind
 
-    def test_duplicate_before_is_an_error(self):
+    def test_duplicate_before_is_an_error(self, soups):
         html = insert_after_label_dl(
             cached_path("4435013").read_bytes(), "Before Enlightening",
             evo_dl("Before Enlightening", "4435001", "One") + evo_dl("Before Enlightening", "4435002", "Two"))

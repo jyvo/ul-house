@@ -1,17 +1,16 @@
 """The driver: cycle, schedule, worker thread."""
-import json
 import queue
 import random
 import socket
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
-import pytest
-
 import pub_fixture as pf
+import pytest
 from local_server import LocalServer, Reply
+
 from ul_house import database
 from ul_house.http.client import RETRY_STATUSES, Client
 from ul_house.sync import icons, service, verify
@@ -326,8 +325,8 @@ def test_requires_snapshot_is_recognised_by_content_type(db, server, pub, tmp_pa
 
 
 def config_for(server, tmp_path, **kw):
-    options = dict(api_base_url=server.base_url, db_path=tmp_path / "w.sqlite", icon_dir=tmp_path / "icons",
-                   app_version="1.0", user_agent="UL-House-test/1.0", launch_jitter=0.0)
+    options = {"api_base_url": server.base_url, "db_path": tmp_path / "w.sqlite", "icon_dir": tmp_path / "icons",
+                   "app_version": "1.0", "user_agent": "UL-House-test/1.0", "launch_jitter": 0.0}
     options.update(kw)
     return SyncConfig(**options)
 
@@ -425,7 +424,7 @@ def test_a_fresh_release_is_not_stale(db, server, pub, tmp_path):
     conn = db(1)
     assert sync(conn, server, pub, tmp_path).stale is False
     assert sync(conn, server, pub, tmp_path).stale is False
-    later = datetime(2026, 10, 18, 0, 0, 1, tzinfo=timezone.utc)
+    later = datetime(2026, 10, 18, 0, 0, 1, tzinfo=UTC)
     result = sync(conn, server, pub, tmp_path, now=lambda: later)
     assert result.outcome is Outcome.UP_TO_DATE and result.stale is True
 
@@ -452,7 +451,7 @@ def test_withdrawn_icons_are_deleted_from_the_cache(db, server, tmp_path):
     assert not cache.has("equipment", W1)
 
 
-NOW = datetime(2026, 10, 5, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 5, 12, 0, 0, tzinfo=UTC)
 
 
 def result_of(outcome):
@@ -487,8 +486,8 @@ def test_failures_back_off_exponentially_up_to_the_interval():
 
 
 def test_over_cap_waits_until_after_midnight_utc():
-    for now in (datetime(2026, 10, 5, 22, 30, tzinfo=timezone.utc), datetime(2026, 10, 5, 0, 0, 1, tzinfo=timezone.utc),
-                datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc)):
+    for now in (datetime(2026, 10, 5, 22, 30, tzinfo=UTC), datetime(2026, 10, 5, 0, 0, 1, tzinfo=UTC),
+                datetime(2026, 12, 31, 23, 59, 59, tzinfo=UTC)):
         midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
         schedule = Schedule(rng=random.Random(5))
         for _ in range(50):

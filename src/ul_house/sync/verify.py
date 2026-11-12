@@ -8,7 +8,7 @@ import json
 import os
 import zlib
 from collections.abc import Iterable, Mapping, Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -119,12 +119,12 @@ def check_invariants(current: Current, manifest: Manifest) -> None:
 def _utc(text: str) -> datetime:
     if not UTC_RE.fullmatch(text):
         raise ProtocolError(f"not an ISO-8601 UTC timestamp: {text[:40]!r}")
-    return datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    return datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
 
 
 def is_stale(expires_at: str, now: datetime) -> bool:
     if now.tzinfo is None:
-        now = now.replace(tzinfo=timezone.utc)
+        now = now.replace(tzinfo=UTC)
     return now > _utc(expires_at)
 
 
@@ -167,8 +167,7 @@ def gunzip_to_file(blob: bytes, dest: Path, limit: int) -> None:
     dest = Path(dest)
     try:
         with open(dest, "wb") as out:
-            for chunk in _gunzip_chunks(blob, limit):
-                out.write(chunk)
+            out.writelines(_gunzip_chunks(blob, limit))
             out.flush()
             os.fsync(out.fileno())
     except BaseException:

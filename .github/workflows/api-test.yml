@@ -1,0 +1,20 @@
+name: api-test
+on:
+  push:
+    paths:
+      - "api/**"
+  pull_request:
+    paths:
+      - "api/**"
+permissions:
+  contents: read
+jobs:
+  api-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --group api --group build
+      - name: API tests
+        run: uv run --locked --group api --group build python -m pytest api/tests -p no:cacheprovider

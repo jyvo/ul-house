@@ -243,7 +243,7 @@ def load_seed(seed: Path, work_dir: Path, *, run_id: str | None = None,
               started_at: str | None = None, records: Records | None = None,
               allow_partial: bool = False, clock: Callable[[], str] = utc_now) -> LoadReport:
     """seed.sqlite -> work/mart.duckdb (schema raw) + work/transform_run.json"""
-    import duckdb               # build group only, considering package lazy load for later
+    import duckdb  # build group only, considering package lazy load for later
     seed = Path(seed)
     work_dir = Path(work_dir)
     meta = _seed_meta(seed)

@@ -5,7 +5,6 @@ import hashlib
 import json
 import shutil
 import sqlite3
-import sys
 from pathlib import Path
 
 import pytest
@@ -18,6 +17,7 @@ import dbt_harness as P
 from catalog_fixtures import CATALOG
 from fetch_fixtures import UIDS, cached_path
 from mini_seed import MINI_CLOCK, TWO_AFTER_UID, fake_png, mini_scope, served_html
+
 from ul_house import ids
 from ul_house import rows as R
 from ul_house.build import dbt as wrapper
@@ -614,7 +614,6 @@ class TestVanish:
     def test_change_log(self, chain):
         step = chain.vanish()
         assert step.failing() == []
-        sha = P.sha256_file
         icon = ids_sha(fake_png("1999001"))
         assert step.changes() == {
             ("equipment", "1015655"): "RETIRE",

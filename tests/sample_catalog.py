@@ -1,8 +1,17 @@
 from ul_house.data.elements import ELEMENT
-from ul_house.models.equipment import ItemRef, EquipmentRef, Weapon, DefensiveGear, Monster, Stats
-from ul_house.models.gear_evolution import Reforge, Awakening, Enlightening, GearEvoMaterial, ItemEvoMaterial
-from ul_house.models.gear_mechanism import Proc, ProcActivation, ProcScaling, SkillEffect, WeaponAbility, MonsterSkill, PassiveSkill, HiddenPotential, PotentialLevel
-
+from ul_house.models.equipment import DefensiveGear, EquipmentRef, ItemRef, Monster, Stats, Weapon
+from ul_house.models.gear_evolution import Awakening, Enlightening, GearEvoMaterial, ItemEvoMaterial, Reforge
+from ul_house.models.gear_mechanism import (
+    HiddenPotential,
+    MonsterSkill,
+    PassiveSkill,
+    PotentialLevel,
+    Proc,
+    ProcActivation,
+    ProcScaling,
+    SkillEffect,
+    WeaponAbility,
+)
 
 UR_WEAPON = Weapon(
     uid="1015655",

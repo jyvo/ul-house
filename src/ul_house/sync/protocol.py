@@ -7,9 +7,9 @@ import json
 import re
 import types
 import typing
-from datetime import datetime, timezone
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any, Literal, Union
 
 from ul_house.database import entities
@@ -53,12 +53,12 @@ _ROW_COLUMN_RE = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
 
 def utc_now() -> datetime:
     """the current time as an aware UTC datetime (injectable `now` parameters default to this)"""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def format_utc(moment: datetime) -> str:
     """ISO-8601 UTC with a Z suffix, whole seconds (P10)"""
-    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _reject_constant(name: str) -> Any:
@@ -143,7 +143,7 @@ def _check_int(cls: str, name: str, value: int) -> None:
         raise ProtocolError(f"{cls}.{name}: {value} is out of range")
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _hints(cls: type) -> dict[str, Any]:
     return typing.get_type_hints(cls)
 

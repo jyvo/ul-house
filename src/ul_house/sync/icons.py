@@ -16,7 +16,6 @@ from ul_house.sync.errors import IconError, ProtocolError
 from ul_house.sync.protocol import ICON_KINDS, SHA256_RE, IconPackListing
 from ul_house.sync.verify import MAX_ICON_BYTES, MAX_JSON_BYTES, MAX_PACK_MEMBERS, require_sha256, sha256_hex
 
-
 INDEX_NAME = "index.json"
 _MEMBER_RE = re.compile(r"^(?P<kind>equipment|item|ability)/(?P<sha>[0-9a-f]{64})\.png$")
 _FILE_RE = re.compile(r"^[0-9a-f]{64}\.png$")

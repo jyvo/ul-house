@@ -1,7 +1,7 @@
 import pytest
 
 from ul_house.models.equipment import EquipmentRef, Stats
-from ul_house.parse import _equip_ref, _to_int, _lines, _parse_effects, _sections
+from ul_house.parse import _equip_ref, _lines, _parse_effects, _sections, _to_int
 
 
 class TestLines:

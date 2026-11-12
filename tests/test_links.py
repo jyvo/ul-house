@@ -1,6 +1,6 @@
 import pytest
-
 from fetch_fixtures import cached_path, missing
+
 from ul_house.crawl.links import EvoLink, LinkMarkupError, read_links, record_links
 from ul_house.seed.store import Store
 

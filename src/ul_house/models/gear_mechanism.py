@@ -1,8 +1,10 @@
 from __future__ import annotations
-from dataclasses import dataclass
+
 from abc import ABC
+from dataclasses import dataclass
 
 from ul_house.config import BASE_URL
+
 
 @dataclass(frozen=True, slots=True)
 class CombatMech(ABC):

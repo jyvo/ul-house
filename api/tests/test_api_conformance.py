@@ -12,10 +12,9 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
+from api_invariants import api_path, check_current, check_manifest, check_pack, check_package
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-
-from api_invariants import api_path, check_current, check_manifest, check_pack, check_package
 
 IMMUTABLE = "public, max-age=31536000, immutable"
 POINTER = "public, max-age=300"
@@ -260,7 +259,7 @@ def test_snapshot_only_release_answers_requires_snapshot_for_every_older_revisio
     if not served.manifest["snapshot_only"]:
         pytest.skip("not a snapshot-only release")
     n = served.current["revision"]
-    for from_revision in range(0, n):
+    for from_revision in range(n):
         r = http.get(f"/v1/updates/{from_revision}")
         assert r.headers["content-type"].split(";")[0] == "application/json"
         contract.validate("requires_snapshot", r.json())

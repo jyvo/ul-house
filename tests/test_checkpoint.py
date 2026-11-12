@@ -3,7 +3,6 @@ from datetime import UTC, datetime, timedelta
 
 import duckdb
 import pytest
-
 import release_fixtures as F
 from release_fixtures import FlakyStore, cleanup_tmp  # noqa: F401
 

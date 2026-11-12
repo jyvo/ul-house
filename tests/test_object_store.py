@@ -1,7 +1,6 @@
 import hashlib
 
 import pytest
-
 from release_fixtures import FakeS3Client, FakeS3Error
 
 from ul_house.build.store import (

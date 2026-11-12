@@ -85,7 +85,7 @@ def _guarded(handler: Callable[[Request], Awaitable[Response]]) -> Callable[[Req
     async def run(request: Request) -> Response:
         try:
             return await handler(request)
-        except Exception:
+        except Exception:  # noqa: BLE001
             return _error_response(500, "internal", "internal error")
 
     run.__name__ = handler.__name__

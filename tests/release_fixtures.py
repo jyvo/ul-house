@@ -397,9 +397,7 @@ class World:
             pass
         elif prev == "UPDATE" and op in ("UPDATE", "RETIRE"):
             self.pending[k] = op
-        elif prev == "RETIRE" and op == "UPDATE":
-            self.pending[k] = "UPDATE"
-        elif prev == "DELETE" and op == "INSERT":
+        elif prev == "RETIRE" and op == "UPDATE" or prev == "DELETE" and op == "INSERT":
             self.pending[k] = "UPDATE"
         else:
             raise ValueError(f"{entity_type} {key}: {prev} then {op} in one revision")
@@ -863,11 +861,11 @@ class World:
 
     def inputs(self, **overrides: Any):
         from ul_house.build.release import ReleaseInputs
-        kwargs: dict[str, Any] = dict(
-            work_dir=self.work, revision=self.revision, store=self.store, build=self.build_info(),
-            clock=self.clock, contract_dir=self.contract_dir, window=self.window,
-            dataset_schema_version=self.dataset_schema_version,
-            snapshot_only_ratio=5.0)            # package size rarely decides
+        kwargs: dict[str, Any] = {
+            "work_dir": self.work, "revision": self.revision, "store": self.store, "build": self.build_info(),
+            "clock": self.clock, "contract_dir": self.contract_dir, "window": self.window,
+            "dataset_schema_version": self.dataset_schema_version,
+            "snapshot_only_ratio": 5.0}            # package size rarely decides
         kwargs.update(overrides)
         return ReleaseInputs(**kwargs)
 

@@ -1,7 +1,6 @@
 import re
 from importlib.metadata import PackageNotFoundError, version
 
-
 BASE_URL = "https://jam-capture-unisonleague-ww.ateamid.com"
 
 try:

@@ -6,19 +6,19 @@ import re
 import sqlite3
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
+import pub_fixture as pf
 import pytest
 
-import pub_fixture as pf
 from ul_house import database
 from ul_house.sync import apply, protocol
 from ul_house.sync.errors import ApplyError, PackageError, ProtocolError, Refused, RevisionMismatch, SyncError
 
 SRC = Path(pf.ROOT) / "src"
 SYNC_DIR = SRC / "ul_house" / "sync"
-FIXED_NOW = datetime(2026, 10, 5, 12, 30, 0, tzinfo=timezone.utc)
+FIXED_NOW = datetime(2026, 10, 5, 12, 30, 0, tzinfo=UTC)
 UserTables = pf.USER_TABLES
 
 
@@ -167,7 +167,7 @@ def test_the_old_saved_ref_dropped_when_new_uid_already_saved(db):
         apply.apply_ops(conn, [alias])
     refs = conn.execute("SELECT profile_id, uid, created_at FROM saved_ref ORDER BY 1, 2").fetchall()
     assert [(p, u) for p, u, _ in refs] == [(1, pf.Uid.W1), (1, pf.Uid.G2), (2, pf.Uid.G2)]
-    assert dict(((p, u), c) for p, u, c in refs)[(1, pf.Uid.G2)] == "2026-01-01T00:00:00Z"
+    assert {(p, u): c for p, u, c in refs}[(1, pf.Uid.G2)] == "2026-01-01T00:00:00Z"
     assert conn.execute("SELECT count(*) FROM inventory WHERE uid = ?", (pf.Uid.G1,)).fetchone()[0] == 0
     assert conn.execute("SELECT inv_id FROM inventory WHERE uid = ? ORDER BY 1", (pf.Uid.G2,)).fetchall() == [(1,), (2,), (4,)]
     assert conn.execute("SELECT count(*) FROM gear_set_slot").fetchone()[0] == 2
@@ -534,7 +534,7 @@ def test_a_crash_mid_apply_leaves_the_old_revision_intact(tmp_path, where):
     package_file.write_text(json.dumps(pf.make_package(1, 4)))
     env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(SRC), str(Path(pf.__file__).parent)]))
     done = subprocess.run([sys.executable, "-c", CRASH_SCRIPT, str(path), str(package_file), str(crash_at)],
-                          env=env, capture_output=True, text=True, timeout=120)
+                          check=False, env=env, capture_output=True, text=True, timeout=120)
     assert done.returncode == 17, done.stderr
     reopened = database.open_database(path)
     try:
@@ -549,9 +549,9 @@ def test_a_crash_mid_apply_leaves_the_old_revision_intact(tmp_path, where):
 
 
 # insert / replace guard on equipment
-REPLACE_RE = re.compile(r"\b(OR\s+REPLACE|REPLACE\s+INTO)\b", re.I)
+REPLACE_RE = re.compile(r"\b(OR\s+REPLACE|REPLACE\s+INTO)\b", re.IGNORECASE)
 EQUIPMENT_WRITE_RE = re.compile(
-    r"^\s*(?P<verb>INSERT\b.*?\bINTO|UPDATE|DELETE\s+FROM)\s+(?:main\.)?[\"`]?equipment[\"`]?(?![\w])", re.I | re.S)
+    r"^\s*(?P<verb>INSERT\b.*?\bINTO|UPDATE|DELETE\s+FROM)\s+(?:main\.)?[\"`]?equipment[\"`]?(?![\w])", re.IGNORECASE | re.DOTALL)
 
 
 def test_equipment_is_only_ever_upserted_or_updated_trace(db):
@@ -567,8 +567,8 @@ def test_equipment_is_only_ever_upserted_or_updated_trace(db):
     for verb, sql in writes:
         assert verb in ("INSERT", "UPDATE"), sql[:120]
         if verb == "INSERT":
-            assert re.search(r"ON\s+CONFLICT", sql, re.I) and re.search(r"DO\s+UPDATE", sql, re.I), sql[:200]
-    assert not [s for s in statements if re.match(r"\s*DELETE\s+FROM\s+(main\.)?\"?equipment\"?\b", s, re.I)]
+            assert re.search(r"ON\s+CONFLICT", sql, re.IGNORECASE) and re.search(r"DO\s+UPDATE", sql, re.IGNORECASE), sql[:200]
+    assert not [s for s in statements if re.match(r"\s*DELETE\s+FROM\s+(main\.)?\"?equipment\"?\b", s, re.IGNORECASE)]
 
 
 TRIPWIRE = ("CREATE TEMP TRIGGER no_equipment_delete BEFORE DELETE ON main.equipment "
@@ -619,7 +619,7 @@ def test_no_sync_source_replaces_rows_by_delete_and_insert():
 
 
 USER_WRITE_RE = re.compile(
-    r"\b(INSERT\s+(?:OR\s+\w+\s+)?INTO|UPDATE|DELETE\s+FROM)\s+(?:main\.)?[\"`]?(inventory|saved_ref|profile|gear_set_slot|gear_set)\b", re.I)
+    r"\b(INSERT\s+(?:OR\s+\w+\s+)?INTO|UPDATE|DELETE\s+FROM)\s+(?:main\.)?[\"`]?(inventory|saved_ref|profile|gear_set_slot|gear_set)\b", re.IGNORECASE)
 
 
 def test_only_apply_py_writes_user_tables():

@@ -194,5 +194,13 @@ def run_checkpoint(store: ObjectStore, work_dir: Path, *, clock: Callable[[], da
     return CheckpointResult(cid, archive_name, archive_sha, current_sha, counts)
 
 
-__all__ = ["ARCHIVE_NEVER", "ArchiveRule", "CheckpointError", "CheckpointResult", "OBS_DAYS", "archive_rules",
-           "reconcile", "run_checkpoint"]
+__all__ = [
+    "ARCHIVE_NEVER",
+    "OBS_DAYS",
+    "ArchiveRule",
+    "CheckpointError",
+    "CheckpointResult",
+    "archive_rules",
+    "reconcile",
+    "run_checkpoint",
+]

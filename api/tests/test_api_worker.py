@@ -10,7 +10,6 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-
 from api_fake_binding import FakeR2Binding, RaisingBinding
 from api_targets import EnvScope, UvicornThread, drain
 from syncapi.app import BUCKET_BINDING, COMMIT_RE, create_app

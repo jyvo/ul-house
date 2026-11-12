@@ -38,7 +38,7 @@ class Step:
 
 
 class Reader:
-    def __init__(self, data: bytes, chunk_size: int, owner: "FakeR2Object") -> None:
+    def __init__(self, data: bytes, chunk_size: int, owner: FakeR2Object) -> None:
         self._data = data
         self._chunk = chunk_size
         self._pos = 0
@@ -60,7 +60,7 @@ class Reader:
 
 
 class Body:
-    def __init__(self, owner: "FakeR2Object") -> None:
+    def __init__(self, owner: FakeR2Object) -> None:
         self._owner = owner
 
     def getReader(self) -> Reader:

@@ -10,8 +10,8 @@ DATASET_SCHEMA_VERSION: int = 1
 SCHEMA_PATH: Path = Path(__file__).with_name("schema.sql")
 SECTIONS: tuple[str, ...] = ("game", "ledger", "sync", "user")
 
-_SECTION_RE = re.compile(r"^-- @section (game|ledger|sync|user)$", re.M)
-_CREATE_TABLE_RE = re.compile(r"^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)", re.I | re.M)
+_SECTION_RE = re.compile(r"^-- @section (game|ledger|sync|user)$", re.MULTILINE)
+_CREATE_TABLE_RE = re.compile(r"^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)", re.IGNORECASE | re.MULTILINE)
 
 
 @dataclass(frozen=True, slots=True)

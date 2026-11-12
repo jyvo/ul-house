@@ -10,8 +10,6 @@ import zlib
 from pathlib import Path
 
 import pytest
-
-from fetch_fixtures import cached_path
 from local_server import LocalServer, Reply
 from mini_seed import (
     MINI_CLOCK,
@@ -25,6 +23,7 @@ from mini_seed import (
     mini_scope,
     served_html,
 )
+
 from ul_house.config import LIST_SOURCES, NEW_RELEASE_PATH, detail_path
 from ul_house.crawl.run import CrawlFailed, Lineage, ResumeRefused, crawl, main, shard_of, summary
 from ul_house.http.client import Client
@@ -133,7 +132,7 @@ class TestShardOf:
     def test_not_dependant_on_pythonhashseed(self):
         code = "from ul_house.crawl.run import shard_of; print(shard_of('1015655', 28), shard_of('4434015', 28))"
         outputs = {
-            subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60,
+            subprocess.run([sys.executable, "-c", code], check=False, capture_output=True, text=True, timeout=60,
                            env={**os.environ, "PYTHONHASHSEED": seed}).stdout.strip()
             for seed in ("1", "12345")
         }
@@ -192,8 +191,8 @@ class TestFirstRun:
         counted = {k: run[k] for k in ("pages_discovered", "pages_fetched", "pages_changed", "pages_failed",
                                        "pages_not_modified", "icons_fetched", "icons_changed", "icons_failed",
                                        "shard_items")}
-        assert counted == dict(pages_discovered=3, pages_fetched=3, pages_changed=3, pages_failed=0,
-                               pages_not_modified=0, icons_fetched=3, icons_changed=3, icons_failed=0, shard_items=0)
+        assert counted == {"pages_discovered": 3, "pages_fetched": 3, "pages_changed": 3, "pages_failed": 0,
+                               "pages_not_modified": 0, "icons_fetched": 3, "icons_changed": 3, "icons_failed": 0, "shard_items": 0}
         assert run["shard_index"] == 0
         assert {k: result.counts[k] for k in counted} == counted
 
@@ -783,7 +782,7 @@ class TestCli:
         assert [r["status"] for r in runs_in(tmp_path / "seed.sqlite")] == ["failed"]
 
     def test_help_exits_zero(self):
-        done = subprocess.run([sys.executable, "-m", "ul_house.crawl.run", "--help"], capture_output=True,
+        done = subprocess.run([sys.executable, "-m", "ul_house.crawl.run", "--help"], check=False, capture_output=True,
                               text=True, timeout=60)
         assert done.returncode == 0
         for flag in ("--seed", "--init", "--resume", "--limit", "--base-url", "--catalog", "--trigger",
@@ -850,10 +849,10 @@ class TestMiniSeed:
             "run_id", "status", "trigger", "code_commit", "catalog_commit", "pages_discovered", "pages_fetched",
             "pages_changed", "pages_failed", "pages_not_modified", "icons_fetched", "icons_changed", "icons_failed",
             "shard_index", "shard_items", "started_at", "ended_at", "error", "code_dirty", "new_release_skipped",
-        )} == dict(run_id=1, status="complete", trigger="manual", code_commit="mini-seed", catalog_commit="mini-seed",
-                   pages_discovered=14, pages_fetched=14, pages_changed=8, pages_failed=0, pages_not_modified=0,
-                   icons_fetched=8, icons_changed=8, icons_failed=0, shard_index=0, shard_items=0,
-                   started_at=MINI_CLOCK, ended_at=MINI_CLOCK, error=None, code_dirty=0, new_release_skipped=0)
+        )} == {"run_id": 1, "status": "complete", "trigger": "manual", "code_commit": "mini-seed", "catalog_commit": "mini-seed",
+                   "pages_discovered": 14, "pages_fetched": 14, "pages_changed": 8, "pages_failed": 0, "pages_not_modified": 0,
+                   "icons_fetched": 8, "icons_changed": 8, "icons_failed": 0, "shard_index": 0, "shard_items": 0,
+                   "started_at": MINI_CLOCK, "ended_at": MINI_CLOCK, "error": None, "code_dirty": 0, "new_release_skipped": 0}
 
     def test_listing(self, conn):
         rows = self.q(conn, "SELECT item_id, name, cost, source_url FROM listing ORDER BY item_id")

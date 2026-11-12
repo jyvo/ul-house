@@ -10,9 +10,9 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import pub_fixture as pf
 import pytest
 
-import pub_fixture as pf
 from ul_house.sync import icons, protocol, verify
 
 ROOT = Path(pf.ROOT)
@@ -38,7 +38,7 @@ def materialise(app: AppVersion, base: Path) -> Path:
     target = base / f"app-{app.name}"
     if not target.exists():
         target.mkdir(parents=True)
-        archive = subprocess.run(["git", "archive", app.ref, "src"], cwd=ROOT, capture_output=True)
+        archive = subprocess.run(["git", "archive", app.ref, "src"], check=False, cwd=ROOT, capture_output=True)
         if archive.returncode != 0:
             pytest.skip(f"git ref {app.ref!r} of app version {app.name} is not available here")
         subprocess.run(["tar", "-x", "-C", str(target)], input=archive.stdout, check=True)
@@ -105,7 +105,7 @@ def run_child(app: AppVersion, work: Path, pub_dir: Path, from_revision: int, to
             "inventory": INVENTORY if inventory is None else inventory, "saved": SAVED if saved is None else saved}
     (work / "args.json").write_text(json.dumps(args))
     env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(src), str(TESTS)]))
-    done = subprocess.run([sys.executable, "-c", CHILD, str(work / "args.json")], env=env, cwd=work,
+    done = subprocess.run([sys.executable, "-c", CHILD, str(work / "args.json")], check=False, env=env, cwd=work,
                           capture_output=True, text=True, timeout=300)
     assert done.returncode == 0, f"{app.name}: {done.stderr[-2000:]}"
     return json.loads(done.stdout.strip().splitlines()[-1])
@@ -243,7 +243,7 @@ MAKE_PUB = ROOT / "api" / "tests" / "fixtures" / "make_pub.py"
 
 @pytest.mark.skipif(not MAKE_PUB.exists(), reason="api/tests/fixtures/make_pub.py (T4) not present yet")
 def test_t4_reference_pub_is_readable_by_the_client_code(tmp_path):
-    done = subprocess.run([sys.executable, str(MAKE_PUB), str(tmp_path / "store")], capture_output=True, text=True, timeout=120)
+    done = subprocess.run([sys.executable, str(MAKE_PUB), str(tmp_path / "store")], check=False, capture_output=True, text=True, timeout=120)
     assert done.returncode == 0, done.stderr
     pub_dir = tmp_path / "store" / "pub"
     sys.path.insert(0, str(MAKE_PUB.parent))
@@ -281,7 +281,7 @@ def test_t4_reference_pub_is_readable_by_the_client_code(tmp_path):
 
 @pytest.mark.skipif(not MAKE_PUB.exists(), reason="api/tests/fixtures/make_pub.py (T4) not present yet")
 def test_t4_reference_package_applies_to_a_client_database(tmp_path):
-    done = subprocess.run([sys.executable, str(MAKE_PUB), str(tmp_path / "store")], capture_output=True, text=True, timeout=120)
+    done = subprocess.run([sys.executable, str(MAKE_PUB), str(tmp_path / "store")], check=False, capture_output=True, text=True, timeout=120)
     assert done.returncode == 0, done.stderr
     pub_dir = tmp_path / "store" / "pub"
     raw = (pub_dir / "updates" / "1-2.json.gz").read_bytes()
@@ -335,7 +335,7 @@ print(json.dumps({
 @pytest.mark.skipif(not MAKE_PUB.exists(), reason="api/tests/fixtures/make_pub.py (T4) not present yet")
 @pytest.mark.parametrize("app", SUPPORTED_APP_VERSIONS, ids=lambda a: a.name)
 def test_t4_reference_package_applies_on_every_supported_app(app, tmp_path):
-    done = subprocess.run([sys.executable, str(MAKE_PUB), str(tmp_path / "store")], capture_output=True, text=True, timeout=120)
+    done = subprocess.run([sys.executable, str(MAKE_PUB), str(tmp_path / "store")], check=False, capture_output=True, text=True, timeout=120)
     assert done.returncode == 0, done.stderr
     src = materialise(app, tmp_path)
     work = tmp_path / "work"
@@ -343,7 +343,7 @@ def test_t4_reference_package_applies_on_every_supported_app(app, tmp_path):
     (work / "args.json").write_text(json.dumps({"db": str(work / "client.sqlite"),
                                                 "package": str(tmp_path / "store" / "pub" / "updates" / "1-2.json.gz")}))
     env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(src), str(TESTS)]))
-    ran = subprocess.run([sys.executable, "-c", CHILD_T4, str(work / "args.json")], env=env, cwd=work,
+    ran = subprocess.run([sys.executable, "-c", CHILD_T4, str(work / "args.json")], check=False, env=env, cwd=work,
                          capture_output=True, text=True, timeout=300)
     assert ran.returncode == 0, f"{app.name}: {ran.stderr[-2000:]}"
     out = json.loads(ran.stdout.strip().splitlines()[-1])

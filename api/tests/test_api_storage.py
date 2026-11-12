@@ -9,7 +9,6 @@ import shutil
 from pathlib import Path
 
 import pytest
-
 from api_fake_binding import FakeR2Binding, JsNull
 from syncapi.routing import NotAllowed, is_allowed_key
 from syncapi.storage import LocalPubStore, guard

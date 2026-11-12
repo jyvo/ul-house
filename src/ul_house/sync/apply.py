@@ -8,13 +8,31 @@ from datetime import datetime
 from typing import Any, Literal
 
 from ul_house.database import (
-    applied_revision, entities, primary_key, quote_ident, table_columns,
+    applied_revision,
+    entities,
+    primary_key,
+    quote_ident,
+    table_columns,
 )
 from ul_house.sync.errors import (
-    ApplyError, DatabaseBusy, PackageError, Refused, RevisionMismatch, SnapshotError, SyncError,
+    ApplyError,
+    DatabaseBusy,
+    PackageError,
+    Refused,
+    RevisionMismatch,
+    SnapshotError,
+    SyncError,
 )
 from ul_house.sync.protocol import (
-    AliasOp, DeleteOp, IconDelta, Op, RetireOp, UpdatePackage, UpsertOp, format_utc, utc_now,
+    AliasOp,
+    DeleteOp,
+    IconDelta,
+    Op,
+    RetireOp,
+    UpdatePackage,
+    UpsertOp,
+    format_utc,
+    utc_now,
 )
 
 

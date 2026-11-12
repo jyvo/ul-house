@@ -9,7 +9,6 @@ from urllib.parse import urlsplit
 
 import httpx
 import pytest
-
 from api_fake_binding import FakeR2Binding
 from api_invariants import api_path
 from api_targets import EnvScope, PlainASGI, UvicornThread
@@ -139,7 +138,7 @@ def happy_path_walk(store, base_url):
     with httpx.Client(base_url=base_url, timeout=10) as client:
         for relative in store.objects:
             client.get(api_path(relative))
-        for from_revision in range(0, store.revision + 2):
+        for from_revision in range(store.revision + 2):
             client.get(f"/v1/updates/{from_revision}")
         client.get("/v1/version", headers={"If-None-Match": "*"})
         client.get(f"/v1/manifests/{store.revision}", headers={"If-None-Match": '"x"'})

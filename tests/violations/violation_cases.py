@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+import dbt_harness as P
 import pytest
 
-import dbt_harness as P
 from ul_house import rows as R
 from ul_house.build.load import LoadError
 

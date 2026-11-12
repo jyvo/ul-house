@@ -15,7 +15,6 @@ duckdb = pytest.importorskip("duckdb")
 
 from ul_house.build import gate
 
-
 EXPECTED_POLICY: dict = {
     "check": {
         "optional_field_null": {
@@ -604,7 +603,7 @@ class TestErrors:
     def test_failed_error_severity_test(self, work, policy_file):
         d = decide(work, policy_file, nodes=[("test.ul_house.not_null_mart_equipment_uid.abc", "fail", "Got 2 results")])
         assert d.level == "error"
-        f = [f for f in d.findings if f.level == "error"][0]
+        f = next(f for f in d.findings if f.level == "error")
         assert f.check == "dbt"
         assert "test.ul_house.not_null_mart_equipment_uid.abc" in f.sources
         assert not d.publishable and not d.held

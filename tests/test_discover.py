@@ -1,13 +1,13 @@
 import pytest
-
 from local_server import LocalServer, Reply
+
 from ul_house.config import NEW_RELEASE_PATH
 from ul_house.crawl.discover import (
+    SOURCES,
     DiscoveryError,
     ListMarkupError,
     ListRow,
     ListSource,
-    SOURCES,
     discover,
     read_new_release,
     read_rows,

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 import shutil
-import sys
 from pathlib import Path
 
 import pytest
@@ -13,6 +12,7 @@ duckdb = pytest.importorskip("duckdb")
 
 import dbt_harness as P
 from violation_cases import CASES, Case
+
 from ul_house.build import gate
 
 _BASE: dict = {}
@@ -54,9 +54,9 @@ def test_violation(case: Case, offline_dbt, mini_seed_path):
         shutil.copyfile(base_history(mini_seed_path), history)
         if case.mutate_history:
             case.mutate_history(history)
-    kwargs = dict(revision=2 if case.previous else 1, history_from=history, mutate_records=case.mutate_records,
-                  project_dir=project, select=case.select, policy_path=policy, decide=False,
-                  started_at=P.PREVIOUS_RUN_AT if case.previous else "2026-10-06T12:00:00Z")
+    kwargs = {"revision": 2 if case.previous else 1, "history_from": history, "mutate_records": case.mutate_records,
+                  "project_dir": project, "select": case.select, "policy_path": policy, "decide": False,
+                  "started_at": P.PREVIOUS_RUN_AT if case.previous else "2026-10-06T12:00:00Z"}
     if case.raises:
         with pytest.raises(case.raises):
             P.build(seed, tmp_path / "work", **kwargs)

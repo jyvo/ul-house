@@ -18,8 +18,15 @@ from ul_house.build import release as rel
 from ul_house.build import sign
 from ul_house.build.release import Bundle, utc_now, utc_text
 from ul_house.build.store import (
-    ImmutableConflict, Layout, ObjectMissing, ObjectStore, StoreError, put_immutable,
-    sha256_bytes, sha256_file, verify_object,
+    ImmutableConflict,
+    Layout,
+    ObjectMissing,
+    ObjectStore,
+    StoreError,
+    put_immutable,
+    sha256_bytes,
+    sha256_file,
+    verify_object,
 )
 
 EXPIRY = timedelta(days=14)                 # release expiry
@@ -568,7 +575,7 @@ def post_publish_check(api_base: str, *, trusted_keys: Sequence[str], expected_r
             index += 1
             tries = 0
             continue
-        except Exception as exc:                                    # any failure is retried
+        except Exception as exc:                                    # any failure is retried  # noqa: BLE001
             last = f"{name}: {type(exc).__name__}: {exc}"
         if tries >= attempts:
             raise PostPublishCheckFailed(f"post-publish check failed after {tries} attempt(s): {last}", step=7)
@@ -602,7 +609,7 @@ def retain(store: ObjectStore, *, clock: Callable[[], datetime] = utc_now, dry_r
     for r in sorted(lineages):
         try:
             lineage_docs[r] = json.loads(_gunzip(store.get(Layout.pub(Layout.rel_lineage(r)))))
-        except Exception:
+        except Exception:  # noqa: BLE001
             continue
 
     # retain recent and weekly snapshots
@@ -632,15 +639,11 @@ def retain(store: ObjectStore, *, clock: Callable[[], datetime] = utc_now, dry_r
             continue
         if k in keep:
             continue
-        if (r := Layout.parse_manifest_key(k)) is not None:
-            (keep if r in keep_rev_meta else deletable).add(k)
-        elif (r := Layout.parse_lineage_key(k)) is not None:
+        if (r := Layout.parse_manifest_key(k)) is not None or (r := Layout.parse_lineage_key(k)) is not None:
             (keep if r in keep_rev_meta else deletable).add(k)
         elif (r := Layout.parse_snapshot_key(k)) is not None:
             (keep if r in keep_snap else deletable).add(k)
-        elif (pair := Layout.parse_update_key(k)) is not None:
-            (keep if pair[1] >= m else deletable).add(k)
-        elif (pair := Layout.parse_delta_pack_key(k)) is not None:
+        elif (pair := Layout.parse_update_key(k)) is not None or (pair := Layout.parse_delta_pack_key(k)) is not None:
             (keep if pair[1] >= m else deletable).add(k)
         elif (r := Layout.parse_base_pack_key(k)) is not None:
             (keep if r >= m else deletable).add(k)
@@ -662,7 +665,7 @@ def retain(store: ObjectStore, *, clock: Callable[[], datetime] = utc_now, dry_r
             if r not in candidate_created:
                 try:
                     created = _parse_z(json.loads(store.get(Layout.candidate(r) + "bundle.json")).get("created_at"))
-                except Exception:
+                except Exception:  # noqa: BLE001
                     created = None
                 candidate_created[r] = created
             created = candidate_created[r]

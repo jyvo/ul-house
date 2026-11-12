@@ -10,12 +10,12 @@ import shutil
 import sqlite3
 import zlib
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import duckdb
+from mini_seed import fake_png, mini_scope
 
-from mini_seed import MINI_CLOCK, fake_png, mini_scope
 from ul_house import rows as R
 from ul_house.build import dbt as wrapper
 from ul_house.build import gate, load

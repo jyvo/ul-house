@@ -4,7 +4,6 @@ import hashlib
 import json
 
 import pytest
-
 from syncapi import routing
 from syncapi.routing import (
     BelowMinimum,

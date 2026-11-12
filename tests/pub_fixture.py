@@ -16,7 +16,7 @@ import zlib
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from cryptography.hazmat.primitives import serialization
@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = Path(os.environ.get("UL_HOUSE_CONTRACT_DIR") or ROOT / "api" / "contract")
 SCHEMAS = CONTRACT / "schemas"
 
-NOW = datetime(2026, 10, 5, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 5, 12, 0, 0, tzinfo=UTC)
 PUBLISHED_AT = "2026-10-01T00:00:00Z"
 CHECKED_AT = "2026-10-04T00:00:00Z"
 EXPIRES_AT = "2026-10-18T00:00:00Z"
@@ -136,38 +136,38 @@ def _seen(rev: int) -> str:
 
 def _equipment(uid: str, name: str, gear_type: str, cost: int, icon: str, *, rev: int = 1, element: str = "fire",
                evo_depth: int = 0, state: str = "live", retired_revision: int | None = None) -> dict:
-    return dict(uid=uid, name=name, rarity="SR", gear_type=gear_type, cost=cost, element_id=element, max_level=80,
-                icon_sha=icon, entry_kind="catalog", keep_reason="catalog", evo_depth=evo_depth, state=state,
-                retired_revision=retired_revision, first_seen="2026-09-01T00:00:00Z", last_seen=_seen(rev),
-                last_changed_revision=rev)
+    return {"uid": uid, "name": name, "rarity": "SR", "gear_type": gear_type, "cost": cost, "element_id": element, "max_level": 80,
+                "icon_sha": icon, "entry_kind": "catalog", "keep_reason": "catalog", "evo_depth": evo_depth, "state": state,
+                "retired_revision": retired_revision, "first_seen": "2026-09-01T00:00:00Z", "last_seen": _seen(rev),
+                "last_changed_revision": rev}
 
 
 def _icon_row(sha: str) -> dict:
-    return dict(sha256=sha, kind="equipment", bytes=len(ICON_BYTES[sha]))
+    return {"sha256": sha, "kind": "equipment", "bytes": len(ICON_BYTES[sha])}
 
 
 def _effect(target: str, description: str) -> dict:
-    return dict(effect_id=ids.effect_id(target, description), target=target, description=description)
+    return {"effect_id": ids.effect_id(target, description), "target": target, "description": description}
 
 
 EFFECT_A = _effect("self", "ATK up")
 EFFECT_B = _effect("enemy", "DEF down")
 EFFECT_C = _effect("self", "Heal")
 EFFECT_OLD = _effect("all", "Old effect")
-FAMILY = dict(family_id=ids.family_id("Blaze"), name="Blaze")
-PROC = dict(proc_id=ids.proc_id("Blaze Strike", "h1"), family_id=FAMILY["family_id"], element_id="fire", size="M",
-            raw_name="Blaze Strike", activation_rate="30%", element_position="prefix")
-PASSIVE = dict(passive_id=ids.passive_id("Guard", "eh1"), name="Guard", effect_hash="eh1")
+FAMILY = {"family_id": ids.family_id("Blaze"), "name": "Blaze"}
+PROC = {"proc_id": ids.proc_id("Blaze Strike", "h1"), "family_id": FAMILY["family_id"], "element_id": "fire", "size": "M",
+            "raw_name": "Blaze Strike", "activation_rate": "30%", "element_position": "prefix"}
+PASSIVE = {"passive_id": ids.passive_id("Guard", "eh1"), "name": "Guard", "effect_hash": "eh1"}
 SKILL1 = ids.skill_id(Uid.M1, 1)
 SKILL2 = ids.skill_id(Uid.M1, 2)
 
 
 def _link(kind: str, owner: str, ordinal: int, effect: dict) -> dict:
-    return dict(owner_kind=kind, owner_id=owner, ordinal=ordinal, effect_id=effect["effect_id"])
+    return {"owner_kind": kind, "owner_id": owner, "ordinal": ordinal, "effect_id": effect["effect_id"]}
 
 
 def _stats(uid: str, atk: int) -> list[dict]:
-    return [dict(uid=uid, label="atk", tier="initial", value=atk), dict(uid=uid, label="atk", tier="max", value=atk * 2)]
+    return [{"uid": uid, "label": "atk", "tier": "initial", "value": atk}, {"uid": uid, "label": "atk", "tier": "max", "value": atk * 2}]
 
 
 def _empty() -> dict[str, list[dict]]:
@@ -176,18 +176,18 @@ def _empty() -> dict[str, list[dict]]:
 
 def _rev1(extra_icons: int) -> dict[str, list[dict]]:
     s = _empty()
-    s["element"] = [dict(element_id="fire"), dict(element_id="none")]
-    s["element_relation"] = [dict(element_id="fire", related_id="none", kind="effective")]
-    s["item"] = [dict(uid=Uid.ITEM, name="Iron Ore")]
+    s["element"] = [{"element_id": "fire"}, {"element_id": "none"}]
+    s["element_relation"] = [{"element_id": "fire", "related_id": "none", "kind": "effective"}]
+    s["item"] = [{"uid": Uid.ITEM, "name": "Iron Ore"}]
     shas = [icon_sha(n) for n in ("w0", "w1", "g1", "g3", "m1")] + [_icon(100 + i) for i in range(extra_icons)]
     s["icon"] = [_icon_row(sha) for sha in shas]
     s["skill_effect"] = [EFFECT_A, EFFECT_B, EFFECT_C, EFFECT_OLD]
     s["proc_family"] = [FAMILY]
     s["proc"] = [PROC]
-    s["proc_condition"] = [dict(proc_id=PROC["proc_id"], ordinal=1, condition="HP above 50%")]
-    s["proc_scaling"] = [dict(proc_id=PROC["proc_id"], ordinal=1, scale_kind="ability_power", element_id="fire",
-                              gear_kind="weapons", cap="5XL+", pieces_needed=None, description="Scales with fire")]
-    s["weapon_ability"] = [dict(uid=Uid.ABILITY, name="Slash")]
+    s["proc_condition"] = [{"proc_id": PROC["proc_id"], "ordinal": 1, "condition": "HP above 50%"}]
+    s["proc_scaling"] = [{"proc_id": PROC["proc_id"], "ordinal": 1, "scale_kind": "ability_power", "element_id": "fire",
+                              "gear_kind": "weapons", "cap": "5XL+", "pieces_needed": None, "description": "Scales with fire"}]
+    s["weapon_ability"] = [{"uid": Uid.ABILITY, "name": "Slash"}]
     s["passive_skill"] = [PASSIVE]
     s["equipment"] = [
         _equipment(Uid.W0, "Old Sword", "sword", 10, icon_sha("w0")),
@@ -196,15 +196,15 @@ def _rev1(extra_icons: int) -> dict[str, list[dict]]:
         _equipment(Uid.G3, "Helm", "armor", 12, icon_sha("g3")),
         _equipment(Uid.M1, "Imp", "monster", 8, icon_sha("m1"), element="none"),
     ]
-    s["weapon"] = [dict(uid=Uid.W0, infusion_count=0, proc_id=None, ability_uid=None),
-                   dict(uid=Uid.W1, infusion_count=1, proc_id=PROC["proc_id"], ability_uid=Uid.ABILITY)]
-    s["defensive_gear"] = [dict(uid=Uid.G1, infusion_count=0, proc_id=PROC["proc_id"]),
-                           dict(uid=Uid.G3, infusion_count=0, proc_id=None)]
-    s["monster"] = [dict(uid=Uid.M1, passive_id=PASSIVE["passive_id"], restrictions=None)]
-    s["monster_skill"] = [dict(skill_id=SKILL1, uid=Uid.M1, ordinal=1, name="Bite"),
-                          dict(skill_id=SKILL2, uid=Uid.M1, ordinal=2, name="Howl")]
-    s["potential_level"] = [dict(uid=Uid.M1, level=1, effect_id=EFFECT_A["effect_id"]),
-                            dict(uid=Uid.M1, level=2, effect_id=EFFECT_B["effect_id"])]
+    s["weapon"] = [{"uid": Uid.W0, "infusion_count": 0, "proc_id": None, "ability_uid": None},
+                   {"uid": Uid.W1, "infusion_count": 1, "proc_id": PROC["proc_id"], "ability_uid": Uid.ABILITY}]
+    s["defensive_gear"] = [{"uid": Uid.G1, "infusion_count": 0, "proc_id": PROC["proc_id"]},
+                           {"uid": Uid.G3, "infusion_count": 0, "proc_id": None}]
+    s["monster"] = [{"uid": Uid.M1, "passive_id": PASSIVE["passive_id"], "restrictions": None}]
+    s["monster_skill"] = [{"skill_id": SKILL1, "uid": Uid.M1, "ordinal": 1, "name": "Bite"},
+                          {"skill_id": SKILL2, "uid": Uid.M1, "ordinal": 2, "name": "Howl"}]
+    s["potential_level"] = [{"uid": Uid.M1, "level": 1, "effect_id": EFFECT_A["effect_id"]},
+                            {"uid": Uid.M1, "level": 2, "effect_id": EFFECT_B["effect_id"]}]
     s["effect_link"] = [
         _link("proc", ids.id_to_text(PROC["proc_id"]), 1, EFFECT_A),
         _link("weapon_ability", Uid.ABILITY, 1, EFFECT_OLD),
@@ -216,17 +216,17 @@ def _rev1(extra_icons: int) -> dict[str, list[dict]]:
     ]
     s["stat"] = _stats(Uid.W0, 50) + _stats(Uid.W1, 100) + _stats(Uid.G1, 30) + _stats(Uid.G3, 20) + _stats(Uid.M1, 10)
     s["evolution_edge"] = [
-        dict(kind="reforge", from_uid=Uid.W0, to_uid=Uid.W1, from_name="Old Sword", to_name="Sword"),
-        dict(kind="awakening", from_uid=Uid.W1, to_uid=Uid.GHOST, from_name="Sword",
-             to_name="Ghost Blade"),
+        {"kind": "reforge", "from_uid": Uid.W0, "to_uid": Uid.W1, "from_name": "Old Sword", "to_name": "Sword"},
+        {"kind": "awakening", "from_uid": Uid.W1, "to_uid": Uid.GHOST, "from_name": "Sword",
+             "to_name": "Ghost Blade"},
     ]
-    s["evolution_chain"] = [dict(kind="reforge", chain_id=Uid.W0, uid=Uid.W0, position=0),
-                            dict(kind="reforge", chain_id=Uid.W0, uid=Uid.W1, position=1)]
+    s["evolution_chain"] = [{"kind": "reforge", "chain_id": Uid.W0, "uid": Uid.W0, "position": 0},
+                            {"kind": "reforge", "chain_id": Uid.W0, "uid": Uid.W1, "position": 1}]
     s["evolution_material"] = [
-        dict(kind="reforge", from_uid=Uid.W0, to_uid=Uid.W1, ordinal=1, material_kind="item", ref_uid=Uid.ITEM,
-             ref_name="Iron Ore", quantity=3),
-        dict(kind="awakening", from_uid=Uid.W1, to_uid=Uid.GHOST, ordinal=1, material_kind="gear", ref_uid=None,
-             ref_name="Mystery Gear", quantity=1),
+        {"kind": "reforge", "from_uid": Uid.W0, "to_uid": Uid.W1, "ordinal": 1, "material_kind": "item", "ref_uid": Uid.ITEM,
+             "ref_name": "Iron Ore", "quantity": 3},
+        {"kind": "awakening", "from_uid": Uid.W1, "to_uid": Uid.GHOST, "ordinal": 1, "material_kind": "gear", "ref_uid": None,
+             "ref_name": "Mystery Gear", "quantity": 1},
     ]
     return s
 
@@ -243,26 +243,26 @@ def _rev2(s: dict) -> dict:
     s["stat"] = [r for r in s["stat"] if r["uid"] != Uid.W1] + _stats(Uid.W1, 120)
     s["icon"].append(_icon_row(icon_sha("w2")))
     s["equipment"].append(_equipment(Uid.W2, "Sword+", "sword", 25, icon_sha("w2"), rev=2, evo_depth=2))
-    s["weapon"].append(dict(uid=Uid.W2, infusion_count=0, proc_id=PROC["proc_id"], ability_uid=None))
+    s["weapon"].append({"uid": Uid.W2, "infusion_count": 0, "proc_id": PROC["proc_id"], "ability_uid": None})
     s["stat"] += _stats(Uid.W2, 140)
-    s["evolution_edge"].append(dict(kind="reforge", from_uid=Uid.W1, to_uid=Uid.W2,
-                                    from_name="Sword", to_name="Sword+"))
-    s["evolution_chain"].append(dict(kind="reforge", chain_id=Uid.W0, uid=Uid.W2, position=2))
-    s["evolution_material"].append(dict(kind="reforge", from_uid=Uid.W1, to_uid=Uid.W2, ordinal=1,
-                                        material_kind="item", ref_uid=Uid.ITEM, ref_name="Iron Ore", quantity=5))
+    s["evolution_edge"].append({"kind": "reforge", "from_uid": Uid.W1, "to_uid": Uid.W2,
+                                    "from_name": "Sword", "to_name": "Sword+"})
+    s["evolution_chain"].append({"kind": "reforge", "chain_id": Uid.W0, "uid": Uid.W2, "position": 2})
+    s["evolution_material"].append({"kind": "reforge", "from_uid": Uid.W1, "to_uid": Uid.W2, "ordinal": 1,
+                                        "material_kind": "item", "ref_uid": Uid.ITEM, "ref_name": "Iron Ore", "quantity": 5})
     for uid, reason in ((Uid.G1, "gone"), (Uid.G3, "out_of_scope")):
         row = _find(s, "equipment", uid=uid)
         row.update(state="retired", retired_revision=2, last_changed_revision=2)
-        s["uid_retired"].append(dict(uid=uid, since_revision=2, reason=reason))
+        s["uid_retired"].append({"uid": uid, "since_revision": 2, "reason": reason})
     return s
 
 
 def _rev3(s: dict) -> dict:
     s["icon"].append(_icon_row(icon_sha("g2")))
     s["equipment"].append(_equipment(Uid.G2, "Plate II", "armor", 18, icon_sha("g2"), rev=3))
-    s["defensive_gear"].append(dict(uid=Uid.G2, infusion_count=0, proc_id=PROC["proc_id"]))
+    s["defensive_gear"].append({"uid": Uid.G2, "infusion_count": 0, "proc_id": PROC["proc_id"]})
     s["stat"] += _stats(Uid.G2, 35)
-    s["uid_alias"].append(dict(old_uid=Uid.G1, new_uid=Uid.G2, since_revision=3, confirmed_commit=COMMIT))
+    s["uid_alias"].append({"old_uid": Uid.G1, "new_uid": Uid.G2, "since_revision": 3, "confirmed_commit": COMMIT})
     s["effect_link"] = [r for r in s["effect_link"]
                         if not (r["owner_kind"] == "weapon_ability" and r["ordinal"] == 1)]
     s["effect_link"].append(_link("weapon_ability", Uid.ABILITY, 1, EFFECT_C))
@@ -325,7 +325,7 @@ def dump(conn: sqlite3.Connection, tables: Iterable[str] = GAME_TABLES, *, rowid
     out = {}
     for table in tables:
         cols = [r[1] for r in conn.execute(f'PRAGMA {schema}.table_info("{table}")')]
-        select = ", ".join(([f"rowid"] if rowid else []) + [f'"{c}"' for c in cols])
+        select = ", ".join((["rowid"] if rowid else []) + [f'"{c}"' for c in cols])
         order = ", ".join(str(i + 1) for i in range(len(cols) + (1 if rowid else 0)))
         out[table] = [tuple(r) for r in conn.execute(f'SELECT {select} FROM {schema}."{table}" ORDER BY {order}')]
     return out
@@ -732,7 +732,7 @@ def serve(pub: Pub, server) -> object:
     server.route("/v1/version", version)
     for path in sorted(pub.path("manifests").glob("*.json")):
         server.route(f"/v1/manifests/{path.stem}", static(f"manifests/{path.name}", "application/json"))
-    for r in range(0, pub.revision + 3):
+    for r in range(pub.revision + 3):
         server.route(f"/v1/updates/{r}", updates(r))
     for path in sorted(pub.path("snapshots").glob("unison-*.sqlite.gz")):
         n = path.name.split("-")[1].split(".")[0]
@@ -751,8 +751,8 @@ def serve(pub: Pub, server) -> object:
 def make_client(server, **kwargs):
     from ul_house.http.client import RETRY_STATUSES, Client
 
-    options = dict(interval=0.0, max_retries=0, backoff_base=0.0, deadline=30.0, timeout=(2.0, 5.0),
-                   retry_statuses=RETRY_STATUSES - {429})
+    options = {"interval": 0.0, "max_retries": 0, "backoff_base": 0.0, "deadline": 30.0, "timeout": (2.0, 5.0),
+                   "retry_statuses": RETRY_STATUSES - {429}}
     options.update(kwargs)
     return Client(server.base_url, **options)
 

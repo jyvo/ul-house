@@ -2,14 +2,13 @@ import re
 
 import pytest
 from bs4 import BeautifulSoup
-
 from fetch_fixtures import UIDS, cached_path, missing
+
 from ul_house import config
 from ul_house.crawl.discover import SOURCES, ListMarkupError, read_new_release, read_rows
 from ul_house.crawl.links import read_links
 from ul_house.http import robots as robots_mod
 from ul_house.http.client import Client
-
 
 WEAPON = "1015655"      # weapon ability, reforge lineage
 AWAKENED = "1015157"    # special-evolution (awakening) material table
@@ -163,7 +162,7 @@ class TestCanaryChecksOnCachedPages:
         with pytest.raises(AssertionError, match="NAME_SELECTOR"):
             check_detail_common(html.replace("name__text", "title__text"), WEAPON)
         with pytest.raises(AssertionError, match="EVO_LINK_RE"):
-            check_lineage(re.sub(r"Before Reforging", "Before Fusion", html, flags=re.I), WEAPON)
+            check_lineage(re.sub(r"Before Reforging", "Before Fusion", html, flags=re.IGNORECASE), WEAPON)
 
     def test_list_and_release_checks_on_synthetic_pages(self):
         from mini_seed import WikiItem, list_html, release_html
