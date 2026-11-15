@@ -35,6 +35,7 @@ env:
   UL_HOUSE_API_BASE: ${{ vars.UL_HOUSE_API_BASE }}
   APPROVE: ${{ inputs.approve_candidate || '' }}
   BUILD: uv run --locked --group build python -m ul_house.build
+  PYTHONUNBUFFERED: "1"
 jobs:
   data:
     runs-on: ubuntu-latest
