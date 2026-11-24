@@ -590,7 +590,7 @@ def test_all_seven_workflows_exist_and_parse():
 def test_data_workflow_trigger_inputs_and_concurrency():
     doc = load("data")
     t = triggers(doc)
-    assert [s["cron"] for s in t["schedule"]] == ["17 23 * * *"]
+    assert [s["cron"] for s in t["schedule"]] == ["0 4 * * 0"]
     assert set(t["workflow_dispatch"]["inputs"]) == {"approve_candidate", "reason", "force_snapshot"}
     assert doc["concurrency"]["group"] == "data" and doc["concurrency"]["cancel-in-progress"] is False
 
