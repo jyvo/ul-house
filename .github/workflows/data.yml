@@ -1,4 +1,4 @@
-# daily data run
+# weekly data run
 name: data
 on:
   schedule:
